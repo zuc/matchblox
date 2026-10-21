@@ -81,7 +81,7 @@ struct ReachView: View {
         do {
             try store.updateAddress(fingerprint: host.fingerprint, address: trimmedAddress)
         } catch {
-            problem = "The iPhone could not save the address. Free some space on the iPhone, then tap Try again."
+            problem = "This device could not save the address. Free some space on this device, then tap Try again."
             return
         }
         var updated = host

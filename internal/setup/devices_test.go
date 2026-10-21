@@ -358,7 +358,7 @@ func TestRemovePairKey(t *testing.T) {
 	home := t.TempDir()
 	until := time.Date(2026, 10, 14, 14, 37, 0, 0, time.UTC)
 	other := "ssh-rsa AAAAB3NzaC1yc2E other@host"
-	keep2 := `restrict,expiry-time="202610141437Z",command="'/opt/mb/matchblox' gate pair ba9876543210" ` + "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOtherOtherOtherOtherOtherOtherOtherOtherOth matchblox:pair"
+	keep2 := `restrict,expiry-time="209910141437Z",command="'/opt/mb/matchblox' gate pair ba9876543210" ` + "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOtherOtherOtherOtherOtherOtherOtherOtherOth matchblox:pair"
 	dir := filepath.Join(home, ".ssh")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
@@ -781,6 +781,7 @@ func TestSeenAndDeviceNotes(t *testing.T) {
 	}
 
 	at := time.Date(2026, 10, 21, 9, 30, 0, 0, time.UTC)
+	phoneLines(t, home, id, "ba9876543210")
 	if _, _, ok := DeviceIn(home, id); ok {
 		t.Fatal("in before it was marked")
 	}

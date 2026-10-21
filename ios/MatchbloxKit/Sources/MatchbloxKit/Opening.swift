@@ -26,7 +26,7 @@ public enum Opening {
         case .hostKeyChanged:
             "\(host) has a new host key. Run matchblox pair on \(host) again."
         case .refused:
-            "The key of this iPhone no longer opens \(host). Run matchblox pair on \(host), then scan the new code."
+            "The key of this device no longer opens \(host). Run matchblox pair on \(host), then scan the new code."
         case .closed:
             "The connection to \(host) closed. Tap Try again, or scan again."
         }

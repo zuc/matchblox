@@ -16,13 +16,13 @@ extension DeviceKeyError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noPasscode:
-            "This iPhone has no passcode. Set a passcode in Settings, then try again."
+            "This device has no passcode. Set a passcode in Settings, then try again."
         case .keyUnavailable:
-            "This iPhone can't open its key. Run matchblox pair on your host, then scan the code again."
+            "This device can't open its key. Run matchblox pair on your host, then scan the code again."
         case .locked:
-            "The iPhone is locked. Unlock the iPhone, then try again."
+            "This device is locked. Unlock it, then try again."
         case .keychain(let status):
-            "The Keychain refused the key of this iPhone (error \(status)). Restart the iPhone, then try again."
+            "The Keychain refused the key of this device (error \(status)). Restart this device, then try again."
         }
     }
 }

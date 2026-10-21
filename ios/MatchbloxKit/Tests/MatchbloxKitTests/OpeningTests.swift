@@ -21,7 +21,7 @@ final class OpeningTests: XCTestCase {
         )
         XCTAssertEqual(
             Opening.message(for: .refused, host: "ws-1"),
-            "The key of this iPhone no longer opens ws-1. Run matchblox pair on ws-1, then scan the new code."
+            "The key of this device no longer opens ws-1. Run matchblox pair on ws-1, then scan the new code."
         )
         XCTAssertEqual(
             Opening.message(for: .closed("x"), host: "ws-1"),

@@ -78,13 +78,14 @@ type Options struct {
 	// Pair writes and reads the pair page's one-time key on this machine.
 	// Nil: this console cannot pair.
 	Pair *PairHost
-	// LastClient is the tty of the client that was active last in the home
-	// session. Nil: ask tmux. "" or an error: the builder's.
-	LastClient func() (tty string, err error)
+	// LastClient is the tty and the creation time of the client that was
+	// active last in the home session. Nil: ask tmux. "" or an error: the
+	// builder's.
+	LastClient func() (tty string, created time.Time, err error)
 	// Clients are the ttys of the clients of this console's tmux server, for
 	// a focus that moves the phone's client. Nil: ask tmux.
 	Clients func() ([]string, error)
-	// Clip copies text to the builder's clipboard. Nil: OSC 52 on stdout.
+	// Clip copies text to the builder's clipboard. Nil: OSC 52 with the output.
 	Clip func(text string)
 }
 

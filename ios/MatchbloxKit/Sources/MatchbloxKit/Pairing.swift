@@ -94,7 +94,7 @@ public enum Pairing {
         case .refused:
             codeUsedMessage(host: host)
         case .unreachable:
-            "Can't reach \(host). Check the address, or that the iPhone is on your network."
+            "Can't reach \(host). Check the address, or that this device is on your network."
         case .hostKeyChanged:
             "\(address) is not \(host). Check the address, then tap Try again."
         case .closed:
@@ -107,11 +107,11 @@ public enum Pairing {
         case .badName:
             "\(host) refused the name of this device. Scan the code again."
         case .badKey:
-            "\(host) refused the key of this iPhone. Update matchblox on \(host), then run matchblox pair again."
+            "\(host) refused the key of this device. Update matchblox on \(host), then run matchblox pair again."
         case .codeUsed:
             codeUsedMessage(host: host)
         case .keyInUse:
-            "The key of this iPhone already opens a login on \(host). Remove its line from ~/.ssh/authorized_keys on \(host), then run matchblox pair again."
+            "The key of this device already opens a login on \(host). Remove its line from ~/.ssh/authorized_keys on \(host), then run matchblox pair again."
         case .writeFailed:
             "\(host) could not save the key of this device. Check that ~/.ssh on \(host) is writable, then scan the code again."
         case .tooSlow:

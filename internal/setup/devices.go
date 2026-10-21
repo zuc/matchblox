@@ -107,6 +107,7 @@ func ClaimPairKey(home, exe, id, pubKey, name string) (Device, error) {
 		return Device{}, err
 	}
 	d := Device{Kind: "phone", Name: name, Fingerprint: fp, ID: id}
+	replaced := "" // the id of the phone line of the same key
 	_, err = rewriteKeys(home, true, func(old []byte) ([]byte, error) {
 		kept, n, err := withoutPairLine(old, id)
 		if err != nil {
@@ -115,12 +116,21 @@ func ClaimPairKey(home, exe, id, pubKey, name string) (Device, error) {
 		if n == 0 {
 			return nil, ErrCodeUsed
 		}
-		d.Name = uniquePhoneName(kept, name, strings.Fields(pubKey)[1])
+		blob := strings.Fields(pubKey)[1]
+		for line := range strings.SplitSeq(string(kept), "\n") {
+			if p, ok := parseDevice(line); ok && p.Kind == "phone" && hasKey(line, blob) {
+				replaced = p.ID
+			}
+		}
+		d.Name = uniquePhoneName(kept, name, blob)
 		return withPhone(kept, exe, pubKey, d.Name, id)
 	}, func() {
 		// matchblox pair waits for the lock, so it reads the note once the line is gone.
 		b, _ := json.Marshal(d)
 		_ = os.WriteFile(claimNote(home, id), b, 0o600)
+		if replaced != "" && replaced != id {
+			_ = os.Remove(deviceNote(home, replaced)) // that id has no line now
+		}
 	})
 	if err != nil {
 		return Device{}, err
@@ -297,7 +307,9 @@ func expiryTime(until time.Time, zone *time.Location) string {
 }
 
 // AddPairKey lets a one-time key run only `matchblox gate pair <id>`, and
-// tells sshd to refuse it after until.
+// tells sshd to refuse it after until. In the same write it takes out the
+// pair lines whose expiry-time has passed, which a console that crashed
+// left, and then their seen notes.
 func AddPairKey(home, exe, pubKey, id string, until time.Time) error {
 	if !remote.ValidPubKey(pubKey) {
 		return errors.New("not one ed25519 public key")
@@ -309,11 +321,44 @@ func AddPairKey(home, exe, pubKey, id string, until time.Time) error {
 		return err
 	}
 	f := strings.Fields(pubKey)
-	_, err := putKeyLine(home, f[1], `restrict,expiry-time="`+expiryTime(until, expiryZone())+`",`+pairCommand(exe, id)+" "+f[0]+" "+f[1]+" matchblox:pair", false)
+	zone := expiryZone()
+	line := `restrict,expiry-time="` + expiryTime(until, zone) + `",` + pairCommand(exe, id) + " " + f[0] + " " + f[1] + " matchblox:pair"
+	var swept []string
+	_, err := rewriteKeys(home, false, func(old []byte) ([]byte, error) {
+		var kept []byte
+		kept, swept = withoutExpiredPairLines(old, time.Now(), zone)
+		return withLine(kept, f[1], line), nil
+	}, func() {
+		for _, gone := range swept {
+			RemovePairSeen(home, gone)
+		}
+	})
 	return err
 }
 
-var pairLine = regexp.MustCompile(`^restrict,expiry-time="\d{12}Z?",command="'[^"']*' gate pair ([0-9a-f]{12})" `)
+var pairLine = regexp.MustCompile(`^restrict,expiry-time="(\d{12})(Z?)",command="'[^"']*' gate pair ([0-9a-f]{12})" `)
+
+// withoutExpiredPairLines is old without the pair lines whose expiry-time is
+// not after now, and the ids of those lines. A time without Z is in zone.
+func withoutExpiredPairLines(old []byte, now time.Time, zone *time.Location) (kept []byte, ids []string) {
+	lines := slices.DeleteFunc(strings.Split(string(old), "\n"), func(line string) bool {
+		m := pairLine.FindStringSubmatch(line)
+		if m == nil {
+			return false
+		}
+		loc := zone
+		if m[2] == "Z" {
+			loc = time.UTC
+		}
+		t, err := time.ParseInLocation("200601021504", m[1], loc)
+		if err != nil || now.Before(t) {
+			return false
+		}
+		ids = append(ids, m[3])
+		return true
+	})
+	return []byte(strings.Join(lines, "\n")), ids
+}
 
 // withoutPairLine is old without the line of the one-time key id; n is how
 // many lines went.
@@ -325,7 +370,7 @@ func withoutPairLine(old []byte, id string) (kept []byte, n int, err error) {
 	all := len(lines)
 	lines = slices.DeleteFunc(lines, func(line string) bool {
 		m := pairLine.FindStringSubmatch(line)
-		return m != nil && m[1] == id
+		return m != nil && m[3] == id
 	})
 	return []byte(strings.Join(lines, "\n")), all - len(lines), nil
 }
@@ -450,13 +495,23 @@ func DeviceIn(home, id string) (at time.Time, tty string, ok bool) {
 }
 
 // DeviceTTYs maps each terminal to the id of the device that is in on it. A
-// terminal that two notes name goes to the note with the later time.
+// terminal that two notes name goes to the note with the later time. A note
+// whose id has no line in authorized_keys is of a gone device: it counts
+// for no terminal.
 func DeviceTTYs(home string) map[string]string {
 	out := map[string]string{}
 	when := map[string]time.Time{}
-	files, _ := filepath.Glob(deviceNote(home, "*"))
+	devices, _ := Devices(home)
+	lines := map[string]bool{}
+	for _, d := range devices {
+		lines[d.ID] = d.ID != ""
+	}
+	files, _ := os.ReadDir(filepath.Join(home, ".ssh"))
 	for _, f := range files {
-		id := strings.TrimPrefix(filepath.Base(f), ".matchblox-device-")
+		id, ok := strings.CutPrefix(f.Name(), ".matchblox-device-")
+		if !ok || !lines[id] {
+			continue
+		}
 		if at, tty, ok := DeviceIn(home, id); ok && tty != "" && (out[tty] == "" || at.After(when[tty])) {
 			out[tty], when[tty] = id, at
 		}

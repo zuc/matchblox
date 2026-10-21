@@ -205,7 +205,7 @@ func TestPairCmdStopsOnCtrlC(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := out.String()
-	for _, want := range []string{"matchblox://pair?p=", "Scan with the iPhone camera. The code works once, until 14:37."} {
+	for _, want := range []string{"matchblox://pair?p=", "Scan with the matchblox app, or paste the link. The code works once, until 14:37."} {
 		if !strings.Contains(s, want) {
 			t.Errorf("output lacks %q:\n%s", want, s)
 		}

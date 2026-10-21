@@ -6,6 +6,29 @@ All notable changes to matchblox are in this file. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The box opens: pair a device in one gesture.** The door "Pair a
+  device" and `DEVICES` on the Machine tab open the pair page in the
+  console. It shows the matchbox with the code on its label. When the app
+  reaches the host the box knocks; when it claims the code the box opens,
+  the match strikes, and the label shows the device's name. Then the page
+  shows when the device is in and what it did first. A device sees
+  `DEVICES` but cannot pair or remove: it says to use the host's own
+  terminal.
+- **The app has no pairing form.** The scan is the consent: the box on the
+  screen catches the code and opens, with haptics, and the console slides
+  in. A device that cannot scan can paste the link. A failure shows the fix
+  on the screen.
+- **The pair code is half its area.** The v2 link packs the same facts in
+  binary, so the code is at most 57 × 29 cells (v1 was 77 × 39) and fits a
+  normal terminal.
+
+### Changed
+
+- **Build the app again with this release.** An older app cannot read the
+  v2 link and says "This code is damaged…". The new app reads v1 and v2.
+
 ## [0.11.0] - 2026-10-21
 
 ### Added

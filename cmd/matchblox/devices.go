@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/blox-eng/matchblox/internal/push"
@@ -19,12 +20,13 @@ func devicesCmd(args []string, home string, out io.Writer) error {
 	switch {
 	case len(args) == 0:
 		return listDevices(home, out)
-	case len(args) == 2 && args[0] == "rm":
-		backup, err := setup.RemoveDevice(home, args[1])
+	case len(args) >= 2 && args[0] == "rm":
+		name := strings.Join(args[1:], " ") // rm iPad 2 needs no quotes
+		backup, err := setup.RemoveDevice(home, name)
 		if err != nil {
 			return err
 		}
-		_, err = fmt.Fprintf(out, "Removed %s. Backup: %s\n", args[1], backup)
+		_, err = fmt.Fprintf(out, "Removed %s. Backup: %s\n", name, backup)
 		return err
 	}
 	return errors.New(devicesUsage)

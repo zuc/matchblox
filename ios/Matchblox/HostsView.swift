@@ -56,7 +56,7 @@ struct HostsView: View {
                 try store.remove(fingerprint: host.fingerprint)
             }
         } catch {
-            problem = "The iPhone could not save the list. Free some space on the iPhone, then try again."
+            problem = "This device could not save the list. Free some space on this device, then try again."
             hosts = store.all()
             return
         }

@@ -52,14 +52,15 @@ It starts when you change `ios/`, `testdata/pair/` or the workflow.
 
 ## Check on a device
 
-CI has no Secure Enclave, no camera and no Face ID. Do these checks on an
-iPhone before a release. `ws-1` is the host.
+CI has no Secure Enclave, no camera and no Face ID. Do these checks on a
+device before a release. `ws-1` is the host.
 
-1. On the host, run `matchblox pair`. Scan the code with the Camera, then
-   tap Pair. The app opens the console. The host prints
-   `Paired <name> (<fingerprint>)`.
-2. `matchblox devices` on the host lists the iPhone.
-3. Turn the iPhone on its side. The console takes the landscape layout.
+1. On the host, run `matchblox pair`, or open Pair a device in its console.
+   Scan the code with the app. There is no Pair button: the scan is the
+   consent. The box opens on both screens, then the app opens the console.
+   The host prints `Paired <name> (<fingerprint>)`.
+2. `matchblox devices` on the host lists the device.
+3. Turn the device on its side. The console takes the landscape layout.
    Open the keyboard. The console and the key row fit above it.
 4. Attach a laptop to the same session. The size follows the device that
    you used last.

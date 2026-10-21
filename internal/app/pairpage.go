@@ -1,9 +1,7 @@
 package app
 
 import (
-	"encoding/base64"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -24,10 +22,12 @@ const (
 )
 
 const (
-	pairScanLine    = "Scan with the matchblox app, or paste the link."
-	pairKeyLine     = "c copies the link · esc stops"
-	pairStoppedLine = "Stopped. The code no longer works."
-	pairSmallLine   = "Make this terminal 61 × 33 or larger to show the code, or press c to copy the link."
+	pairScanLine      = "Scan with the matchblox app, or paste the link."
+	pairKeyLine       = "c copies the link · esc stops"
+	pairFailedKeyLine = "Enter tries again · esc goes back"
+	pairPortLine      = "Port 22. For another port, run matchblox pair --port <n>."
+	pairStoppedLine   = "Stopped. The code no longer works."
+	pairSmallLine     = "Make this terminal 61 × 33 or larger to show the code, or press c to copy the link."
 )
 
 // PairDevice is a device that claimed a pair code, as setup.Device.
@@ -87,18 +87,14 @@ func pairFrame() tea.Cmd {
 	return tea.Tick(splashTick, func(time.Time) tea.Msg { return pairFrameMsg{} })
 }
 
-// osc52 asks the terminal to put text on the clipboard. It works over SSH,
-// and it does not move the cursor.
-func osc52(text string) string {
-	return "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(text)) + "\x07"
-}
-
-func (m Model) clip(text string) {
+// clip puts text on the clipboard. Without a Clip, the program writes OSC 52
+// with its output, between frames: it works over SSH and through tmux.
+func (m Model) clip(text string) tea.Cmd {
 	if m.opt.Clip != nil {
 		m.opt.Clip(text)
-		return
+		return nil
 	}
-	_, _ = os.Stdout.WriteString(osc52(text))
+	return tea.SetClipboard(text)
 }
 
 // pairOffer is an Offer that runs off the Update goroutine: it can take
@@ -345,6 +341,7 @@ func (m Model) pairStripEsc(k string) bool {
 
 // pairWatched is the poll after the claim: beat 3 is the device's own
 // console, and the page folds without it after a minute, and after beat 4.
+// A fold ends the poll, so the next page starts one.
 func (m Model) pairWatched() (Model, tea.Cmd) {
 	p := *m.pair
 	h, now := m.opt.Pair, m.now()
@@ -352,12 +349,14 @@ func (m Model) pairWatched() (Model, tea.Cmd) {
 	case p.standalone || h == nil || h.DeviceIn == nil:
 	case p.beat == 4:
 		if !now.Before(p.foldAt) {
+			m.pairPolling = false
 			return m.closePairPage(""), nil
 		}
 	case p.beat == 2:
 		if at, _, ok := h.DeviceIn(p.device.ID); ok && at.After(p.claimedAt) {
 			p.beat, p.line = 3, p.device.Name+" is in. Answer an agent from it, or esc to go back."
 		} else if now.Sub(p.claimedAt) >= pairInWait {
+			m.pairPolling = false
 			return m.closePairPage(pairedLine(p.device)), nil
 		}
 	}
@@ -374,7 +373,7 @@ func (m Model) pairActed(a action) Model {
 		return m
 	}
 	_, tty, found := h.DeviceIn(p.device.ID)
-	if !found || tty == "" || m.lastClient() != tty {
+	if last, _ := m.lastClient(); !found || tty == "" || last != tty {
 		return m
 	}
 	verb, pane := "acted in", a.rec
@@ -412,8 +411,8 @@ func (m Model) pairKey(k string) (tea.Model, tea.Cmd) {
 	switch k {
 	case "c":
 		if p.live() {
-			m.clip(p.link)
 			m.flash = "link copied"
+			return m, m.clip(p.link)
 		}
 	case "esc":
 		why := ""
@@ -453,8 +452,11 @@ func (m Model) pairView(w int) string {
 		line += "   " + m.st.muted.Render(fmt.Sprintf("%d:%02d", int(left.Minutes()), int(left.Seconds())%60))
 	}
 	var keys []string
-	if p.live() {
+	switch {
+	case p.live():
 		keys = append(keys, m.st.muted.Render(pairKeyLine))
+	case p.failed && !p.standalone:
+		keys = append(keys, m.st.muted.Render(pairFailedKeyLine))
 	}
 	if m.flash != "" {
 		keys = append(keys, m.st.text.Render(m.flash))
@@ -483,6 +485,9 @@ func (m Model) pairView(w int) string {
 		lines = box
 	}
 	lines = append(lines, text...)
+	if p.live() && !p.standalone && len(lines) < m.height { // matchblox pair has --port
+		lines = append(lines, centre(m.st.muted.Render(pairPortLine)))
+	}
 	top := max((m.height-len(lines))/2, 0)
 	return strings.Repeat("\n", top) + strings.Join(lines, "\n")
 }

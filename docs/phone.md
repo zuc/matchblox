@@ -11,57 +11,74 @@ TestFlight yet. To get it now, build it on a Mac with Xcode: see
 [ios/README.md](https://github.com/blox-eng/matchblox/blob/main/ios/README.md).
 Without a Mac, use [Without the app](#without-the-app).
 
-The app pairs with one scan. It needs no account and no password.
+The app pairs with one scan. It needs no account and no password. Build
+the app again with each release that changes the pair link: an older app
+cannot read the new code.
 
-1. On the host, run:
+1. On the host, open the console and choose the door "Pair a device", or
+   `+ pair a device` under `DEVICES` on the Machine tab. Or run:
 
    ```sh
    matchblox pair
    ```
 
-   matchblox shows a QR code. The code works once. It expires after 5
-   minutes.
-2. In the app, scan the code with the iPhone camera.
-3. Type a name for the phone. The name has 1 to 40 letters, digits,
-   spaces and `. _ - '`.
-4. The app opens the console of the host.
+   matchblox shows a box with a QR code on its label. The code works once.
+   It expires after 5 minutes. `c` copies the link. `esc` stops, and the
+   code no longer works.
+2. In the app, point the camera at the code. The scan is the consent: there
+   is no form and no Pair button. The box on the phone catches the code and
+   opens, at the same time as the box on the host. The app names the device
+   after the phone: `iPhone` or `iPad`. A second one is `iPad 2`.
+3. The console of the host slides in. On the host, the page says that the
+   device is in, then what it did first.
+
+If the camera cannot read the code, copy the link with `c` on the host, and
+tap `Paste` in the app. The Camera app also opens the link.
 
 A host can have a name that the phone cannot reach, such as its name on
-your home network. Change the address on the pairing screen before the
-app connects. Or run `matchblox pair --address <host>`. Add `--port` if
-sshd does not listen on port 22.
+your home network. Run `matchblox pair --address <host>`. The console pairs
+on port 22. If sshd listens on another port, run `matchblox pair --port <n>`.
+If the app says `Can't reach <host>.`,
+type the address that the device can reach, then tap `Try again`.
 
-If the app says "This code was used or expired", run `matchblox pair` on
-the host again.
+If the app says "This code was used or expired", open Pair a device on the
+host again, or run `matchblox pair` again, and scan the new code.
 
-When the phone pairs, `matchblox pair` prints the name and fingerprint of
-that phone. If it is not your phone, remove it at once with
+When a device pairs, the host shows its name and fingerprint. If it is not
+yours, remove it at once: press `x` on it in `DEVICES`, or run
 `matchblox devices rm <fingerprint>`.
+
+A device sees `DEVICES` in its console but cannot pair or remove: it says
+`Pair from the host's own terminal.` or `Remove devices from the host's own
+terminal.`
 
 ### Use the app
 
 - Each time the app opens, Face ID or the passcode unlocks the key. The key
-  stays in the Secure Enclave of the iPhone. Each host has its own key.
+  stays in the Secure Enclave of the device. Each host has its own key.
 - With one host, the app opens straight into its console. With two or
   more, it lists the hosts. Tap a host to open its console. Tap
   `+ Pair a host` to add one.
 - If the app says `Can't reach <host>.` and `New address?`, type the
-  address that the iPhone can reach, then tap `Try again`. The pairing
+  address that the device can reach, then tap `Try again`. The pairing
   stays.
 - If the app says that the host has a new host key, the app does not
   connect. Check that the change is yours, then run `matchblox pair` on the
-  host and scan the new code.
+  host and scan the new code. A host key that does not match at pairing
+  gets the same message, and the app shows the Address field: the address
+  reaches another machine.
 - When you quit the console, the app says that the console ended. Tap
   `Open again` to open it. With two or more hosts, tap `Hosts` to go to
   the list.
 - A swipe on a host in the list removes the host and its key from the
-  iPhone. It does not remove the key on the host. Run
+  device. It does not remove the key on the host. Run
   `matchblox devices rm <name>` on the host for that.
 
-### Remove a phone
+### Remove a device
 
-To remove a phone, run `matchblox devices` on the host. It lists each phone
-and laptop that opens the host. Then run:
+To remove a device, press `x` on it in `DEVICES` on the Machine tab, and
+type `y`. Or run `matchblox devices` on the host. It lists each phone and
+laptop that opens the host. Then run:
 
 ```sh
 matchblox devices rm <name>

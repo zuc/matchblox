@@ -315,7 +315,7 @@ final class ConsoleConnection {
         case .passcodeNotSet:
             DeviceKeyError.noPasscode.localizedDescription
         default:
-            "The iPhone could not check Face ID or the passcode. Tap Try again."
+            "This device could not check Face ID or the passcode. Tap Try again."
         }
     }
 }

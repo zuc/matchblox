@@ -40,6 +40,7 @@ struct PairingView: View {
         let box = PairStage.boxFrame(in: screen)
         ZStack {
             MatchBox(pose: pose, label: AnyView(label))
+                .opacity(screen == .zero ? 0 : 1) // no 1 × 1 box before the size is known
                 .frame(width: box.width, height: box.height)
                 .position(x: box.midX, y: box.midY)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -239,7 +240,7 @@ enum PairFlow {
             do {
                 stale = try store.upsert(host)
             } catch {
-                return .failed("This iPhone could not save \(label). Free some space on the iPhone, then run matchblox pair on \(label) again.")
+                return .failed("This device could not save \(label). Free some space on this device, then run matchblox pair on \(label) again.")
             }
             for old in stale {
                 try? DeviceKey.remove(host: old.fingerprint)

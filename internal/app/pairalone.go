@@ -24,7 +24,7 @@ type PairOptions struct {
 	NoMotion bool
 	// Now is the clock. Nil: time.Now.
 	Now func() time.Time
-	// Clip copies text to the clipboard. Nil: OSC 52 on stdout.
+	// Clip copies text to the clipboard. Nil: OSC 52 with the output.
 	Clip func(text string)
 	// Paired is the line that names the device that paired. Nil: the
 	// console's own line.

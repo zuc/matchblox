@@ -152,7 +152,7 @@ func pairCmd(ctx context.Context, args []string, out io.Writer, now func() time.
 	}
 	_, _ = fmt.Fprintln(out, strings.Join(qr, "\n"))
 	_, _ = fmt.Fprintln(out, url)
-	_, _ = fmt.Fprintf(out, "Scan with the iPhone camera. The code works once, until %s.\n", until.Local().Format("15:04"))
+	_, _ = fmt.Fprintf(out, "Scan with the matchblox app, or paste the link. The code works once, until %s.\n", until.Local().Format("15:04"))
 
 	tick := time.NewTicker(env.poll)
 	defer tick.Stop()

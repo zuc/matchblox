@@ -78,7 +78,7 @@ final class PairingTests: XCTestCase {
         XCTAssertEqual(Pairing.message(for: .codeUsed, host: "ws-1"), used, "one meaning, one text")
         XCTAssertEqual(
             Pairing.message(for: .unreachable, host: "ws-1", address: "ws-1.local"),
-            "Can't reach ws-1. Check the address, or that the iPhone is on your network."
+            "Can't reach ws-1. Check the address, or that this device is on your network."
         )
     }
 
@@ -99,6 +99,18 @@ final class PairingTests: XCTestCase {
         for (refusal, text) in cases {
             XCTAssertEqual(Pairing.message(for: refusal, host: "ws-1"), text)
         }
+    }
+
+    /// The app runs on an iPad too, so no message names the iPhone.
+    func testRefusalsNameThisDevice() {
+        XCTAssertEqual(
+            Pairing.message(for: .badKey, host: "ws-1"),
+            "ws-1 refused the key of this device. Update matchblox on ws-1, then run matchblox pair again."
+        )
+        XCTAssertEqual(
+            Pairing.message(for: .keyInUse, host: "ws-1"),
+            "The key of this device already opens a login on ws-1. Remove its line from ~/.ssh/authorized_keys on ws-1, then run matchblox pair again."
+        )
     }
 
     func testNoReplyCoversTheNetwork() {

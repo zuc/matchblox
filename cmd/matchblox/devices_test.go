@@ -86,10 +86,31 @@ func TestDevicesListAndRemove(t *testing.T) {
 
 func TestDevicesRefusesWrongArguments(t *testing.T) {
 	home := homeWithDevices(t)
-	for _, args := range [][]string{{"rm"}, {"rm", "a", "b"}, {"--x"}, {"list"}} {
+	for _, args := range [][]string{{"rm"}, {"--x"}, {"list"}} {
 		if err := devicesCmd(args, home, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "usage: matchblox devices") {
 			t.Errorf("%v: %v", args, err)
 		}
+	}
+}
+
+// A name with a space works unquoted: matchblox devices rm iPad 2.
+func TestDevicesRemoveANameWithASpace(t *testing.T) {
+	home := t.TempDir()
+	if _, err := setup.AuthorizeDevice(home, testExe, phoneKey1, "iPad"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := setup.AuthorizeDevice(home, testExe, phoneKey2, "iPad 2"); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := devicesCmd([]string{"rm", "iPad", "2"}, home, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(out.String(), "Removed iPad 2. Backup: ") {
+		t.Fatalf("rm printed %q", out.String())
+	}
+	if ds, _ := setup.Devices(home); len(ds) != 1 || ds[0].Name != "iPad" {
+		t.Fatalf("devices after rm: %+v", ds)
 	}
 }
 
