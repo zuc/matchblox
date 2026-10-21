@@ -474,3 +474,78 @@ func TestTheRelayPostsTheEventToPushSend(t *testing.T) {
 		t.Fatalf("410: %v", err)
 	}
 }
+
+func TestAFailedStartDoesNotSwallowAHeldChange(t *testing.T) {
+	r := &fakeRelay{fail: func(e Event) error {
+		if e.Kind == "start" {
+			return &RelayError{Code: http.StatusServiceUnavailable}
+		}
+		return nil
+	}}
+	c := &clock{t: t0}
+	p, _ := phone(t, "a", false, true)
+	s := newSender(t, r, c, p)
+
+	s.handle(burning(10)) // the start fails; the first update goes to the channel
+	r.take()
+	c.add(time.Minute)
+	s.handle(burning(20)) // held by the 3 minutes; the start is tried again and fails
+	if ev := ofKind(r.take(), "channel"); len(ev) != 0 {
+		t.Fatalf("progress within 3 minutes: %+v", ev)
+	}
+	c.add(2 * time.Minute)
+	s.handle(burning(20))
+	ev := ofKind(r.take(), "channel")
+	if len(ev) != 1 || liveOf(t, ev[0]).APS.State.Top.Pct != 20 {
+		t.Fatalf("the held progress is lost: %+v", ev)
+	}
+}
+
+// livePhones is a list of registrations that can change between docs.
+type livePhones struct {
+	mu   sync.Mutex
+	regs []Registration
+}
+
+func (p *livePhones) List() []Registration {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]Registration(nil), p.regs...)
+}
+
+func (p *livePhones) add(r Registration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.regs = append(p.regs, r)
+}
+
+func TestAStartOfAnotherPhoneDoesNotSwallowAHeldChange(t *testing.T) {
+	r := &fakeRelay{}
+	c := &clock{t: t0}
+	a, _ := phone(t, "a", false, true)
+	b, _ := phone(t, "b", false, true)
+	ps := &livePhones{regs: []Registration{a}}
+	s := NewSender(r, ps, openNumbers(t, t.TempDir()), fp, c.now)
+	t.Cleanup(s.Close)
+
+	s.handle(burning(10))
+	r.take()
+	c.add(time.Minute)
+	ps.add(b)
+	s.handle(burning(20)) // held for a; b starts with it
+	ev := r.take()
+	if len(ev) != 1 || ev[0].Kind != "start" || ev[0].Target != "start-b" {
+		t.Fatalf("b's start: %+v", ev)
+	}
+	c.add(2 * time.Minute)
+	s.handle(burning(20))
+	var toA []Event
+	for _, e := range ofKind(r.take(), "channel") {
+		if e.Target == "chan-a" {
+			toA = append(toA, e)
+		}
+	}
+	if len(toA) != 1 || liveOf(t, toA[0]).APS.State.Top.Pct != 20 {
+		t.Fatalf("a never gets the held progress: %+v", toA)
+	}
+}

@@ -253,12 +253,17 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 	}
 	cs := Build(doc, s.hostFP, s.n, now)
 	prio, due := s.due(cs, now)
-	sent := false
+	// The baseline (last, pctAt, usageAt) moves only when this state reached
+	// every following phone's activity: by a channel update (it goes to each
+	// channel when due), or by a good start of each. A failed start, or the
+	// start of one phone, must not swallow a change another phone waits for.
+	updated, startedAll := false, true
 	channels := map[string]bool{}
 	for _, r := range follow {
 		tok, ch := r.Island.StartToken, r.Island.Channel
-		if s.needStart(tok, now) {
-			sent = true
+		if !s.needStart(tok, now) {
+			startedAll = false
+		} else {
 			b := liveBody{APS: liveAPS{Timestamp: now.Unix(), Event: "start", State: cs,
 				AttributesType: "IslandAttributes", Attributes: &islandAttributes{Host: cs.Host},
 				Channel: ch, Alert: &startAlert{Title: "matchblox", Body: "matchblox"}}}
@@ -269,24 +274,24 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 			case err == nil:
 				s.started[tok] = now
 				delete(s.tried, tok)
-				channels[ch] = true // the start carried this state
-				continue
+				continue // the start carried this state
 			case errors.As(err, &re) && re.Code == http.StatusGone:
 				s.dead[tok] = true
 				s.clear() // the renewal says it, not push: relay 410
 			default:
 				s.tried[tok] = now
 			}
+			startedAll = false
 		}
 		if !due || ch == "" || channels[ch] {
 			continue
 		}
 		channels[ch] = true
-		sent = true
+		updated = true
 		pl, _ := json.Marshal(liveBody{APS: liveAPS{Timestamp: now.Unix(), Event: "update", State: cs}})
 		s.send(r, Event{Target: ch, Kind: "channel", PushType: "liveactivity", Priority: prio, Payload: pl})
 	}
-	if !sent {
+	if !updated && !startedAll {
 		return
 	}
 	switch {
