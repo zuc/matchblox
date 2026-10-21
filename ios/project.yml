@@ -2,7 +2,7 @@ name: Matchblox
 options:
   bundleIdPrefix: com.blox
   deploymentTarget:
-    iOS: "17.2"
+    iOS: "18.0"
   createIntermediateGroups: true
   groupSortPosition: top
 
@@ -41,18 +41,20 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: matchblox uses the camera to scan the pairing code of your host.
         NSFaceIDUsageDescription: Face ID unlocks the key that opens your console.
+        NSSupportsLiveActivities: true
         CFBundleURLTypes:
           - CFBundleURLName: com.blox.matchblox.pair
             CFBundleURLSchemes: [matchblox]
     settings:
       base:
         SWIFT_VERSION: "5.0"
-        IPHONEOS_DEPLOYMENT_TARGET: "17.2"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_USER_SCRIPT_SANDBOXING: YES
         SWIFT_STRICT_CONCURRENCY: complete
-        PRODUCT_BUNDLE_IDENTIFIER: com.blox.matchblox
+        MATCHBLOX_BUNDLE_ID: com.blox.matchblox
+        PRODUCT_BUNDLE_IDENTIFIER: $(MATCHBLOX_BUNDLE_ID)
         CODE_SIGN_ENTITLEMENTS: Matchblox/Matchblox.entitlements
     dependencies:
       - package: MatchbloxKit
@@ -61,6 +63,56 @@ targets:
         product: SwiftTerm
       - package: swift-nio-ssh
         product: NIOSSH
+      - target: MatchbloxIsland
+      - target: MatchbloxBuzz
+
+  MatchbloxIsland:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MatchbloxIsland
+      - path: Matchblox/Tokens.swift
+    info:
+      path: MatchbloxIsland/Info.plist
+      properties:
+        CFBundleDisplayName: matchblox
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        SWIFT_VERSION: "5.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+        MATCHBLOX_BUNDLE_ID: com.blox.matchblox
+        PRODUCT_BUNDLE_IDENTIFIER: $(MATCHBLOX_BUNDLE_ID).island
+        CODE_SIGN_ENTITLEMENTS: MatchbloxIsland/MatchbloxIsland.entitlements
+
+  MatchbloxBuzz:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MatchbloxBuzz
+    info:
+      path: MatchbloxBuzz/Info.plist
+      properties:
+        CFBundleDisplayName: matchblox
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+    settings:
+      base:
+        SWIFT_VERSION: "5.0"
+        IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
+        MATCHBLOX_BUNDLE_ID: com.blox.matchblox
+        PRODUCT_BUNDLE_IDENTIFIER: $(MATCHBLOX_BUNDLE_ID).buzz
+        CODE_SIGN_ENTITLEMENTS: MatchbloxBuzz/MatchbloxBuzz.entitlements
 
 schemes:
   Matchblox:

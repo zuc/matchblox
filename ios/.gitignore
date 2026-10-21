@@ -1,4 +1,6 @@
 *.xcodeproj
 build/
 Matchblox/Info.plist
+MatchbloxIsland/Info.plist
+MatchbloxBuzz/Info.plist
 .build/

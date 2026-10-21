@@ -5,7 +5,7 @@ It pairs with your host by QR code. Then it connects over SSH.
 
 ## Build
 
-You need a Mac with Xcode 16 and Homebrew.
+You need a Mac with Xcode 16 and Homebrew. The app needs iOS 18.0 or later.
 
 1. `make install` installs XcodeGen.
 2. `make gen` makes `Matchblox.xcodeproj` from `project.yml`.
@@ -19,13 +19,22 @@ Trust & Enable. Xcode asks only once.
 If the build says that the Metal Toolchain is missing, run
 `xcodebuild -downloadComponent MetalToolchain`. SwiftTerm needs it.
 
+The app has two extensions: MatchbloxIsland (the Live Activity) and
+MatchbloxBuzz (the buzz). Set your team on all three targets. The app needs
+these capabilities: Push Notifications, App Attest, App Groups
+(`group.com.blox.matchblox`) and Keychain Sharing
+(`com.blox.matchblox.shared`). The extensions carry the App Group, and the
+buzz also the keychain group.
+
 If Xcode says that the bundle identifier is not available, give your
-build its own identifier. Do not change `project.yml`:
+build its own identifier. Do not change `project.yml`. The app, both
+extensions, the App Group and the keychain group all derive from the one
+setting `MATCHBLOX_BUNDLE_ID`, so one override is enough:
 
 ```sh
 xcodebuild -scheme Matchblox -destination 'id=<device id>' \
   -allowProvisioningUpdates DEVELOPMENT_TEAM=<team> \
-  PRODUCT_BUNDLE_IDENTIFIER=com.blox.matchblox.<you> build
+  MATCHBLOX_BUNDLE_ID=com.blox.matchblox.<you> build
 ```
 
 `xcrun devicectl list devices` shows the device id.

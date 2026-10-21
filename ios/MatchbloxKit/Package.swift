@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "MatchbloxKit",
-    platforms: [.iOS("17.2"), .macOS("14.0")],
+    platforms: [.iOS("18.0"), .macOS("14.0")],
     products: [
         .library(name: "MatchbloxKit", targets: ["MatchbloxKit"]),
     ],
