@@ -22,6 +22,32 @@ final class IslandStateTests: XCTestCase {
         XCTAssertEqual(again, s)
     }
 
+    /// ActivityKit decodes a content state with its own plain JSONDecoder; the host's
+    /// RFC 3339 dates have to read with it, and encode back to what the host sends.
+    func testAPlainDecoderReadsTheHostsDates() throws {
+        let raw = try PushFixture.data("content-state")
+        let s = try JSONDecoder().decode(IslandState.self, from: raw)
+        XCTAssertEqual(s, try PushFixture.load("content-state", as: IslandState.self))
+        XCTAssertEqual(s.waitAt, ISO8601DateFormatter().date(from: "2026-10-21T15:00:00Z"))
+        XCTAssertEqual(s.top?.out, ISO8601DateFormatter().date(from: "2026-10-21T16:40:00Z"))
+        XCTAssertEqual(s.accounts[0].windows[0].resets, ISO8601DateFormatter().date(from: "2026-10-21T17:00:00Z"))
+        XCTAssertEqual(s.accounts[1].runsOut, ISO8601DateFormatter().date(from: "2026-10-21T16:15:00Z"))
+        // A plain encoder writes what Go sends.
+        let back = try JSONEncoder().encode(s)
+        let want = try JSONSerialization.jsonObject(with: raw) as! NSDictionary
+        let got = try JSONSerialization.jsonObject(with: back) as! NSDictionary
+        XCTAssertEqual(got, want)
+        // Whatever strategy a decoder has, the dates read the same.
+        let iso = JSONDecoder(); iso.dateDecodingStrategy = .secondsSince1970
+        XCTAssertEqual(try iso.decode(IslandState.self, from: raw), s)
+        // A fraction, as Go writes one, survives the round trip.
+        var f = s; f.waitAt = Date(timeIntervalSince1970: 1_792_594_800.25)
+        XCTAssertEqual(try JSONDecoder().decode(IslandState.self, from: JSONEncoder().encode(f)), f)
+        // A number reads too (seconds since 1970).
+        let n = try JSONDecoder().decode(WindowUse.self, from: Data(#"{"name":"5h","pct":3,"resets":1792594800}"#.utf8))
+        XCTAssertEqual(n.resets, Date(timeIntervalSince1970: 1_792_594_800))
+    }
+
     func testTheRegisterTypesReadTheFixtures() throws {
         let r: RegisterRequest = try PushFixture.load("register-request")
         // Grants are keyed as the host's Sender looks them up: "<kind>:<target>".

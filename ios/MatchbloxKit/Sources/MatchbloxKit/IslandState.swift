@@ -1,15 +1,14 @@
 import Foundation
 
 /// JSON as Go writes it: RFC 3339 times with `Z` (with or without a fraction).
+/// The island's types read and write their dates as RFC 3339 themselves, so any decoder
+/// works, ActivityKit's plain one included; these stay for the other types and tests.
 public enum IslandJSON {
     public static var decoder: JSONDecoder {
         let d = JSONDecoder()
         d.dateDecodingStrategy = .custom { decoder in
             let s = try decoder.singleValueContainer().decode(String.self)
-            let plain = ISO8601DateFormatter()
-            let frac = ISO8601DateFormatter()
-            frac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = plain.date(from: s) ?? frac.date(from: s) { return date }
+            if let date = RFC3339.date(s) { return date }
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "not RFC 3339: \(s)"))
         }
         return d
@@ -19,10 +18,46 @@ public enum IslandJSON {
         let e = JSONEncoder()
         e.dateEncodingStrategy = .custom { date, encoder in
             var c = encoder.singleValueContainer()
-            try c.encode(ISO8601DateFormatter().string(from: date))
+            try c.encode(RFC3339.string(date))
         }
         e.outputFormatting = [.sortedKeys]
         return e
+    }
+}
+
+/// RFC 3339 dates read and written by hand, whatever date strategy a coder has.
+enum RFC3339 {
+    static func date(_ s: String) -> Date? {
+        let plain = ISO8601DateFormatter()
+        let frac = ISO8601DateFormatter()
+        frac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return plain.date(from: s) ?? frac.date(from: s)
+    }
+
+    /// As Go writes a time: whole seconds without a fraction, else with one.
+    static func string(_ d: Date) -> String {
+        let f = ISO8601DateFormatter()
+        if d.timeIntervalSince1970.rounded(.down) != d.timeIntervalSince1970 {
+            f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        }
+        return f.string(from: d)
+    }
+
+    /// An RFC 3339 string, or a number of seconds since 1970.
+    static func decode<K: CodingKey>(_ c: KeyedDecodingContainer<K>, _ key: K) throws -> Date? {
+        guard c.contains(key), try !c.decodeNil(forKey: key) else { return nil }
+        if let s = try? c.decode(String.self, forKey: key) {
+            guard let d = date(s) else {
+                throw DecodingError.dataCorruptedError(forKey: key, in: c, debugDescription: "not RFC 3339: \(s)")
+            }
+            return d
+        }
+        return Date(timeIntervalSince1970: try c.decode(Double.self, forKey: key))
+    }
+
+    static func encode<K: CodingKey>(_ d: Date?, _ c: inout KeyedEncodingContainer<K>, _ key: K) throws {
+        guard let d else { return }
+        try c.encode(string(d), forKey: key)
     }
 }
 
@@ -36,6 +71,24 @@ public struct IslandState: Codable, Hashable, Sendable {
 
         public init(n: Int, state: String, pct: Int, out: Date? = nil) {
             self.n = n; self.state = state; self.pct = pct; self.out = out
+        }
+
+        enum CodingKeys: String, CodingKey { case n, state, pct, out }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            n = try c.decode(Int.self, forKey: .n)
+            state = try c.decode(String.self, forKey: .state)
+            pct = try c.decode(Int.self, forKey: .pct)
+            out = try RFC3339.decode(c, .out)
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(n, forKey: .n)
+            try c.encode(state, forKey: .state)
+            try c.encode(pct, forKey: .pct)
+            try RFC3339.encode(out, &c, .out)
         }
     }
 
@@ -56,6 +109,28 @@ public struct IslandState: Codable, Hashable, Sendable {
         self.host = host; self.burn = burn; self.wait = wait; self.waitAt = waitAt
         self.top = top; self.accounts = accounts; self.stoker = stoker
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        host = try c.decode(String.self, forKey: .host)
+        burn = try c.decode(Int.self, forKey: .burn)
+        wait = try c.decode(Int.self, forKey: .wait)
+        waitAt = try RFC3339.decode(c, .waitAt)
+        top = try c.decodeIfPresent(Top.self, forKey: .top)
+        accounts = try c.decodeIfPresent([AccountUse].self, forKey: .accounts) ?? []
+        stoker = try c.decode(Bool.self, forKey: .stoker)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(host, forKey: .host)
+        try c.encode(burn, forKey: .burn)
+        try c.encode(wait, forKey: .wait)
+        try RFC3339.encode(waitAt, &c, .waitAt)
+        try c.encodeIfPresent(top, forKey: .top)
+        try c.encode(accounts, forKey: .accounts)
+        try c.encode(stoker, forKey: .stoker)
+    }
 }
 
 public struct AccountUse: Codable, Hashable, Sendable {
@@ -72,6 +147,22 @@ public struct AccountUse: Codable, Hashable, Sendable {
         case n, windows, lasts
         case runsOut = "runs_out"
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        n = try c.decode(Int.self, forKey: .n)
+        windows = try c.decodeIfPresent([WindowUse].self, forKey: .windows) ?? []
+        lasts = try c.decode(Bool.self, forKey: .lasts)
+        runsOut = try RFC3339.decode(c, .runsOut)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(n, forKey: .n)
+        try c.encode(windows, forKey: .windows)
+        try c.encode(lasts, forKey: .lasts)
+        try RFC3339.encode(runsOut, &c, .runsOut)
+    }
 }
 
 public struct WindowUse: Codable, Hashable, Sendable {
@@ -81,6 +172,22 @@ public struct WindowUse: Codable, Hashable, Sendable {
 
     public init(name: String, pct: Int, resets: Date? = nil) {
         self.name = name; self.pct = pct; self.resets = resets
+    }
+
+    enum CodingKeys: String, CodingKey { case name, pct, resets }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        pct = try c.decode(Int.self, forKey: .pct)
+        resets = try RFC3339.decode(c, .resets)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(name, forKey: .name)
+        try c.encode(pct, forKey: .pct)
+        try RFC3339.encode(resets, &c, .resets)
     }
 }
 
