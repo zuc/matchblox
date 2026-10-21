@@ -104,11 +104,12 @@ enum Registration {
         return RegistrationRecord.needed(last: IslandSettings.record(host: host), now: want)
     }
 
-    /// Registers with one host when anything changed since the last registration with it.
+    /// Registers with one host: at an open always, as the reply brings the names of new
+    /// sessions; otherwise when anything changed since the last registration with it.
     /// A host that is not followed gets no island, which clears it there.
-    static func run(host: Host, key: NIOSSHPrivateKey) async throws {
+    static func run(host: Host, key: NIOSSHPrivateKey, atOpen: Bool = false) async throws {
         guard var want = await desired(for: host) else { throw Failure.noDeviceToken }
-        guard RegistrationRecord.needed(last: IslandSettings.record(host: host), now: want) else { return }
+        guard RegistrationRecord.needed(last: IslandSettings.record(host: host), now: want, atOpen: atOpen) else { return }
         try Task.checkCancellation()
 
         var grants = try await Attest.grants(items: Relay.items(deviceToken: want.deviceToken, startToken: want.island?.startToken))
@@ -152,7 +153,7 @@ enum Registration {
         IslandSettings.prefs = prefs
         if lost != nil { IslandSettings.endStrayActivities() }
         do {
-            try await run(host: host, key: key)
+            try await run(host: host, key: key, atOpen: true)
         } catch {
             islandLog.error("register with \(host.label, privacy: .public): \(String(describing: error), privacy: .public)")
         }

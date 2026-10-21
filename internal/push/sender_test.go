@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -605,5 +607,36 @@ func TestAWaitThatEndsAloneDoesNotPush(t *testing.T) {
 	s.handle(d)
 	if ev := ofKind(r.take(), "channel"); len(ev) != 0 {
 		t.Fatalf("pushed: %+v", ev)
+	}
+}
+
+// A number that cannot be written down is not sent: the buzz and the island
+// wait, and the Machine tab says why.
+func TestANumberThatCannotBeSavedIsNotSent(t *testing.T) {
+	r := &fakeRelay{}
+	c := &clock{t: t0}
+	p, _ := phone(t, "a", true, true)
+	s := newSender(t, r, c, p)
+	blocked := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocked, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s.n.dir = filepath.Join(blocked, "sub")
+
+	s.handle(waiting("x"))
+	if ev := r.take(); len(ev) != 0 {
+		t.Fatalf("sent with an unsaved number: %+v", ev)
+	}
+	if st := s.Status(); !strings.HasPrefix(st, "push: numbers: ") {
+		t.Fatalf("status %q", st)
+	}
+	s.n.dir = t.TempDir()
+	c.add(time.Minute)
+	s.handle(waiting("x"))
+	if ev := r.take(); len(ofKind(ev, "device")) != 1 || len(ofKind(ev, "start")) != 1 {
+		t.Fatalf("after the disk mends: %+v", ev)
+	}
+	if st := s.Status(); st != "" {
+		t.Fatalf("status after the disk mends %q", st)
 	}
 }

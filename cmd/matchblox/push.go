@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/blox-eng/matchblox/internal/config"
 	"github.com/blox-eng/matchblox/internal/push"
+	"github.com/blox-eng/matchblox/internal/service"
 	"github.com/blox-eng/matchblox/internal/setup"
 )
 
@@ -33,4 +36,25 @@ func pushSender(cfg config.Push, home, hostKeyPath string, n *push.Numbers) (*pu
 	s := push.NewSender(push.NewHTTPRelay(cfg.Relay, push.DefaultTimeout), homePhones(home), n, fp, time.Now)
 	s.HostLabel = setup.HostLabel()
 	return s, nil
+}
+
+// wirePush gives s its numbers and its sender, kept in dir. A numbers.json
+// that cannot be read keeps push off and says so on the Machine tab: numbers
+// that start again at 1 would put old names on new sessions.
+func wirePush(s *service.Service, cfg config.Push, home, dir, hostKeyPath string) {
+	n, err := push.OpenNumbers(dir)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "matchblox: push is off: numbers:", err)
+		if !cfg.Off {
+			s.PushOff = "push: numbers: " + err.Error()
+		}
+		return
+	}
+	s.PushNumbers = n
+	p, err := pushSender(cfg, home, hostKeyPath, n)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "matchblox: push is off:", err)
+		return
+	}
+	s.Push = p
 }

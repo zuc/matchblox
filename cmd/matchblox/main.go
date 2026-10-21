@@ -48,7 +48,6 @@ import (
 	"github.com/blox-eng/matchblox/internal/panes"
 	"github.com/blox-eng/matchblox/internal/procfs"
 	"github.com/blox-eng/matchblox/internal/proto"
-	"github.com/blox-eng/matchblox/internal/push"
 	"github.com/blox-eng/matchblox/internal/remote"
 	"github.com/blox-eng/matchblox/internal/sample"
 	"github.com/blox-eng/matchblox/internal/service"
@@ -549,16 +548,7 @@ func newService(cfg config.Config, root string) *service.Service {
 		fmt.Fprintln(os.Stderr, "matchblox: parking is off:", err)
 	}
 	s.Ships = shipsSource(cfg, filepath.Dir(s.StatePath))
-	if n, err := push.OpenNumbers(filepath.Dir(s.StatePath)); err == nil {
-		s.PushNumbers = n
-		if p, err := pushSender(cfg.Push, home(), defaultHostKey, n); err != nil {
-			fmt.Fprintln(os.Stderr, "matchblox: push is off:", err)
-		} else {
-			s.Push = p
-		}
-	} else {
-		fmt.Fprintln(os.Stderr, "matchblox: push is off: numbers:", err)
-	}
+	wirePush(s, cfg.Push, home(), filepath.Dir(s.StatePath), defaultHostKey)
 	return s
 }
 

@@ -44,7 +44,8 @@ func TestASessionKeepsItsNumber(t *testing.T) {
 }
 
 func TestANumberIsNeverUsedAgain(t *testing.T) {
-	n := openNumbers(t, t.TempDir())
+	dir := t.TempDir()
+	n := openNumbers(t, dir)
 	if n.Session("a") != 1 {
 		t.Fatal("a is not 1")
 	}
@@ -53,6 +54,56 @@ func TestANumberIsNeverUsedAgain(t *testing.T) {
 	}
 	if n.Session("a") != 1 {
 		t.Fatal("a changed")
+	}
+	// After a restart, a session that ends and a new one in its pane: the
+	// new one gets a new number, and the old one keeps its own.
+	n = openNumbers(t, dir)
+	if got := n.Session("c"); got != 3 {
+		t.Fatalf("after reopen c = %d, want 3", got)
+	}
+	if n.Session("a") != 1 || n.Session("b") != 2 {
+		t.Fatal("a number moved on reopen")
+	}
+}
+
+// A number that cannot be written down is not handed out: after a restart
+// it would go to another session.
+func TestANumberThatCannotBeSavedIsNotGiven(t *testing.T) {
+	dir := t.TempDir()
+	n := openNumbers(t, dir)
+	if n.Session("a") != 1 {
+		t.Fatal("a is not 1")
+	}
+	blocked := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocked, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	n.dir = filepath.Join(blocked, "sub") // MkdirAll fails under a file
+	if got := n.Session("b"); got != 0 {
+		t.Fatalf("unsaved b = %d, want 0", got)
+	}
+	if got := n.Account("anthropic", "x"); got != 0 {
+		t.Fatalf("unsaved account = %d, want 0", got)
+	}
+	if n.Err() == nil {
+		t.Fatal("no error after a failed save")
+	}
+	if n.Session("a") != 1 {
+		t.Fatal("a known number is still given")
+	}
+	ss, _ := n.Names([]sample.Session{{SessionID: "a", Name: "api"}, {SessionID: "b", Name: "web"}}, nil)
+	if len(ss) != 1 || ss[1] != "api" {
+		t.Fatalf("names with a failed save = %v", ss)
+	}
+	n.dir = dir
+	if got := n.Session("b"); got != 2 {
+		t.Fatalf("b after the disk mends = %d, want 2", got)
+	}
+	if n.Err() != nil {
+		t.Fatalf("error after a good save: %v", n.Err())
+	}
+	if got := openNumbers(t, dir).Session("b"); got != 2 {
+		t.Fatalf("b after reopen = %d, want 2", got)
 	}
 }
 
@@ -73,31 +124,35 @@ func TestAccountsAreNumberedOnTheirOwn(t *testing.T) {
 	}
 }
 
-func TestNamesAreOnlyForNumbersGiven(t *testing.T) {
+// Every current session and account has a number and a name, given or not
+// before: the phone learns them all at one register.
+func TestNamesNumberEveryCurrentSessionAndAccount(t *testing.T) {
 	n := openNumbers(t, t.TempDir())
 	n.Session("gone")
 	live := n.Session("live")
 	acc := n.Account("anthropic", "a@b.c · Max")
 	n.Account("openai", "x")
 	ss, as := n.Names(
-		[]sample.Session{{SessionID: "live", Name: "api"}, {SessionID: ""}},
-		[]limits.Account{{Provider: "anthropic", Account: "a@b.c · Max"}},
+		[]sample.Session{{SessionID: "live", Name: "api"}, {SessionID: "new", Name: "web"}, {SessionID: ""}},
+		[]limits.Account{{Provider: "anthropic", Account: "a@b.c · Max"}, {Provider: "openai", Account: "y"}},
 	)
-	if len(ss) != 1 || ss[live] != "api" {
+	if len(ss) != 2 || ss[live] != "api" || ss[n.Session("new")] != "web" || n.Session("new") != 3 {
 		t.Fatalf("sessions = %v", ss)
 	}
-	if len(as) != 1 || as[acc] != "anthropic a@b.c · Max" {
+	if len(as) != 2 || as[acc] != "anthropic a@b.c · Max" || as[n.Account("openai", "y")] != "openai y" {
 		t.Fatalf("accounts = %v", as)
 	}
 }
 
-func TestANumbersFileThatDoesNotParseStartsOver(t *testing.T) {
+// A numbers file that does not parse keeps push off: starting again at 1
+// would hand old numbers to new sessions.
+func TestANumbersFileThatDoesNotParseIsAnError(t *testing.T) {
 	dir := t.TempDir()
 	if err := writeFile(dir, "{nope"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := OpenNumbers(dir); err != nil {
-		t.Fatal(err)
+	if n, err := OpenNumbers(dir); err == nil || n != nil {
+		t.Fatalf("OpenNumbers = %v, %v; want an error", n, err)
 	}
 }
 

@@ -123,6 +123,9 @@ type Service struct {
 	// Push sends the buzz and the island of each published doc. Nil: none
 	// ([push] off, or a fixture).
 	Push *push.Sender
+	// PushOff is the Machine tab's push line while Push is nil because push
+	// could not start (`push: numbers: <why>`); "" when it is off by choice.
+	PushOff string
 
 	// alone is when the last console closed; zero while one is open. A new
 	// service starts alone.
@@ -368,7 +371,7 @@ func (s *Service) publish(snap sample.Snapshot, rec func(state.Doc)) {
 	s.cur.Recommendations = advice.Build(snap, s.cur.Git)
 	s.mergeQueue()
 	s.expireFocus(s.now())
-	s.cur.Push = ""
+	s.cur.Push = s.PushOff
 	if s.Push != nil {
 		s.cur.Push = s.Push.Status() // the last send's: this doc's goes after
 	}

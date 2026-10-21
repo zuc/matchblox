@@ -69,6 +69,13 @@ final class IslandPrefsTests: XCTestCase {
         XCTAssertTrue(IslandPrefs(choice: FollowChoice.none).isStray(activityHost: "a30534a5"))
     }
 
+    /// Each open registers again, changed or not: the reply brings the names of new sessions.
+    func testEachOpenRegistersAgain() {
+        let reg = RegistrationRecord(deviceToken: "aa", notifyKey: Data([1]), buzz: true, island: nil)
+        XCTAssertTrue(RegistrationRecord.needed(last: reg, now: reg, atOpen: true))
+        XCTAssertFalse(RegistrationRecord.needed(last: reg, now: reg, atOpen: false))
+    }
+
     func testARegistrationRunsOnlyWhenSomethingChanged() {
         let reg = RegistrationRecord(deviceToken: "aa", notifyKey: Data([1]), buzz: true, island: nil)
         XCTAssertTrue(RegistrationRecord.needed(last: nil, now: reg))

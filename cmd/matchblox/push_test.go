@@ -5,12 +5,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/blox-eng/matchblox/internal/config"
 	"github.com/blox-eng/matchblox/internal/push"
+	"github.com/blox-eng/matchblox/internal/service"
 	"github.com/blox-eng/matchblox/internal/setup"
 	"github.com/blox-eng/matchblox/internal/state"
 )
@@ -130,4 +132,32 @@ func TestNoHostKeyNoSender(t *testing.T) {
 	if s != nil || err == nil {
 		t.Fatalf("sender %v, %v without a host key", s, err)
 	}
+}
+
+// A numbers.json that does not parse keeps push off, and the Machine tab
+// says why; a good one starts the sender.
+func TestUnreadableNumbersKeepPushOff(t *testing.T) {
+	url, hits := fakeRelay(t, http.StatusOK)
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "numbers.json"), []byte("{nope"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := &service.Service{}
+	wirePush(s, config.Push{Relay: url}, registered(t), dir, hostKey(t))
+	if s.Push != nil || s.PushNumbers != nil {
+		t.Fatalf("push on with a bad numbers.json: %v, %v", s.Push, s.PushNumbers)
+	}
+	if !strings.HasPrefix(s.PushOff, "push: numbers: ") {
+		t.Fatalf("push line %q", s.PushOff)
+	}
+	if n := hits.Load(); n != 0 {
+		t.Fatalf("the relay got %d sends", n)
+	}
+
+	good := &service.Service{}
+	wirePush(good, config.Push{Relay: url}, registered(t), t.TempDir(), hostKey(t))
+	if good.Push == nil || good.PushNumbers == nil || good.PushOff != "" {
+		t.Fatalf("push off with a good dir: %q", good.PushOff)
+	}
+	good.Push.Close()
 }

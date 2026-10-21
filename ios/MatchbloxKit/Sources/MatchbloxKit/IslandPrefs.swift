@@ -54,8 +54,9 @@ public struct IslandPrefs: Codable, Equatable, Sendable {
     }
 }
 
-/// What the phone last registered with one host. A new registration runs only when the
-/// one the phone would send now differs.
+/// What the phone last registered with one host. At an open the phone registers again
+/// whatever changed, as its reply brings the names of new sessions (design 0010 §3.2);
+/// after a change of the setting it registers only where the registration differs.
 public struct RegistrationRecord: Codable, Equatable, Sendable {
     public var deviceToken: String
     public var notifyKey: Data
@@ -67,7 +68,9 @@ public struct RegistrationRecord: Codable, Equatable, Sendable {
         self.deviceToken = deviceToken; self.notifyKey = notifyKey; self.buzz = buzz; self.island = island
     }
 
-    public static func needed(last: RegistrationRecord?, now: RegistrationRecord) -> Bool { last != now }
+    public static func needed(last: RegistrationRecord?, now: RegistrationRecord, atOpen: Bool = false) -> Bool {
+        atOpen || last != now
+    }
 
     /// The island to send a host: none for a host not followed. For the followed host, the
     /// push-to-start token of this launch, else the one kept from before, else the island

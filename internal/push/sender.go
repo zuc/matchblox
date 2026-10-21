@@ -104,10 +104,14 @@ func (s *Sender) Close() {
 	<-s.done
 }
 
-// Status is "" or the one line the Machine tab shows: the last failure as
-// `push: <why>`, cleared by a success, or else the renewal copy while the
-// phone's push-to-start token is dead.
+// Status is "" or the one line the Machine tab shows: a new number that
+// could not be written down as `push: numbers: <why>` (nothing that needs
+// it is sent), else the last failure as `push: <why>`, cleared by a success,
+// or else the renewal copy while the phone's push-to-start token is dead.
 func (s *Sender) Status() string {
+	if err := s.n.Err(); err != nil {
+		return "push: numbers: " + err.Error()
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.status != "" {
@@ -186,9 +190,12 @@ func (s *Sender) buzz(doc state.Doc, regs []Registration, now time.Time) {
 	if !s.buzzAt.IsZero() && now.Sub(s.buzzAt) < buzzEvery {
 		return
 	}
+	num := s.n.Session(fresh.SessionID)
+	if num == 0 {
+		return // no number kept for it yet: the wait goes with a later doc
+	}
 	s.buzzAt, s.buzzSet = now, set
 	line := BuzzLine(s.HostLabel, *fresh)
-	num := s.n.Session(fresh.SessionID)
 	for _, r := range regs {
 		if !r.Buzz || r.DeviceToken == "" {
 			continue
@@ -268,6 +275,9 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 		return
 	}
 	cs := Build(doc, s.hostFP, s.n, now)
+	if !numbered(cs) {
+		return // a number that could not be written down: Status says so
+	}
 	prio, due := s.due(cs, now)
 	// The baseline (last, pctAt, usageAt) moves only when this state reached
 	// every following phone's activity: by a channel update (it goes to each
@@ -322,6 +332,20 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 		}
 	}
 	s.last = &cs
+}
+
+// numbered says each session and account in cs has its number: 0 is one
+// that numbers.json could not keep.
+func numbered(cs ContentState) bool {
+	if cs.Top != nil && cs.Top.N == 0 {
+		return false
+	}
+	for _, a := range cs.Accounts {
+		if a.N == 0 {
+			return false
+		}
+	}
+	return true
 }
 
 // needStart says whether to push-to-start with tok: never started, or

@@ -181,3 +181,15 @@ func TestAHeldProgressGoesOutOnTheNextTick(t *testing.T) {
 		t.Fatalf("the held progress: %+v", ev[1])
 	}
 }
+
+// Push that could not start (numbers.json unreadable) says why on the
+// Machine tab, though there is no sender.
+func TestPushThatCannotStartSaysWhy(t *testing.T) {
+	s := newTest(t, time.Hour)
+	s.PushOff = "push: numbers: numbers.json: bad"
+	var got state.Doc
+	s.publish(burns(40, time.Now()), func(d state.Doc) { got = d })
+	if got.Push != "push: numbers: numbers.json: bad" {
+		t.Fatalf("line %q", got.Push)
+	}
+}
