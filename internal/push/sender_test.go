@@ -549,3 +549,56 @@ func TestAStartOfAnotherPhoneDoesNotSwallowAHeldChange(t *testing.T) {
 		t.Fatalf("a never gets the held progress: %+v", toA)
 	}
 }
+
+// A wait that begins anew leaves the count and the top as they were, and still
+// goes at once, so the island can break through for 60 s.
+func TestAWaitThatBeginsAnewUpdatesAtOnce(t *testing.T) {
+	for name, tc := range map[string]struct{ first, second state.Doc }{
+		"another of two waits": {waiting("a", "b"), func() state.Doc {
+			d := waiting("a", "b", "c")
+			d.Queue = []queue.Item{d.Queue[0], d.Queue[2]}
+			d.Queue[1].Since = t0.Add(10 * time.Second)
+			return d
+		}()},
+		"the same session asks again": {waiting("a"), func() state.Doc {
+			d := waiting("a")
+			d.Queue[0].Since = t0.Add(5 * time.Second)
+			return d
+		}()},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := &fakeRelay{}
+			c := &clock{t: t0}
+			p, _ := phone(t, "a", false, true)
+			s := newSender(t, r, c, p)
+			s.handle(tc.first)
+			r.take()
+			c.add(time.Second)
+			s.handle(tc.second)
+			ev := r.take()
+			if len(ev) != 1 || ev[0].Kind != "channel" || ev[0].Priority != 10 {
+				t.Fatalf("events %+v", ev)
+			}
+			a := liveOf(t, ev[0])
+			if !a.APS.State.WaitAt.Equal(tc.second.Queue[len(tc.second.Queue)-1].Since) {
+				t.Fatalf("payload %s", ev[0].Payload)
+			}
+		})
+	}
+}
+
+func TestAWaitThatEndsAloneDoesNotPush(t *testing.T) {
+	r := &fakeRelay{}
+	c := &clock{t: t0}
+	p, _ := phone(t, "a", false, true)
+	s := newSender(t, r, c, p)
+	s.handle(waiting("a", "b"))
+	r.take()
+	c.add(time.Second)
+	d := waiting("a", "b")
+	d.Queue = d.Queue[:1] // b is answered; a remains the top
+	s.handle(d)
+	if ev := ofKind(r.take(), "channel"); len(ev) != 0 {
+		t.Fatalf("pushed: %+v", ev)
+	}
+}

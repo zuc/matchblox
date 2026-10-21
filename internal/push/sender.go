@@ -330,7 +330,7 @@ func (s *Sender) due(cs ContentState, now time.Time) (int, bool) {
 		return 10, true
 	}
 	if (l.Top == nil) != (cs.Top == nil) || cs.Top != nil && (l.Top.N != cs.Top.N || l.Top.State != cs.Top.State) ||
-		cs.Wait > l.Wait || cs.Stoker != l.Stoker {
+		cs.Wait > l.Wait || cs.WaitAt.After(l.WaitAt) || cs.Stoker != l.Stoker {
 		return 10, true
 	}
 	if pctOf(l) != pctOf(&cs) && now.Sub(s.pctAt) >= progressEvery {
