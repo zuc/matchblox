@@ -9,10 +9,10 @@ All notable changes to matchblox are in this file. The format follows
 ### Added
 
 - **The phone buzzes when an agent waits, with the app closed.** A new
-  wait, a session done and a session out buzz the phone through a small
-  relay that stores nothing. Run `matchblox serve` with the door "Keep
-  matchblox running" and no console needs to be open. Set `[push] off =
-  true` to stop it.
+  wait buzzes the phone through a small relay that stores nothing. The
+  buzz text is sealed to the phone. Run `matchblox serve` with the door
+  "Keep matchblox running" and no console needs to be open. Set
+  `[push] off = true` to stop it.
 - **The island shows the session that matters most, or your usage.** The
   Live Activity has two faces, Sessions and Usage, and the app's `Island`
   screen sets which one, which host it follows and which hosts buzz. A wait

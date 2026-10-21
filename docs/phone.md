@@ -96,41 +96,55 @@ matchblox running" in `matchblox setup` keeps it running with no console
 open. The app registers with the host each time it opens, after Face ID or
 the passcode. Nothing connects to a host from the background.
 
-- **The buzz:** a new wait, a session done and a session out. At most one
-  buzz each 30 s for each host. `Answer` opens the session.
-- **The island:** the match of the session that waits, and its state.
-  Progress moves in steps of 5 %, at most each 3 minutes. The Usage face
-  moves when a window changes by 2 % or more, or resets, at most each 5
-  minutes. A wait breaks through the Usage face for 60 s.
-- **A tap opens the session:** the app asks for Face ID, connects and
-  opens the console with the number of that session. The console opens on it. If it
-  has ended, it says `That session ended.`
+- **The buzz:** a new wait, when a session asks for a permission or a
+  choice. At most one buzz each 30 s for each host. `Answer` opens the
+  session.
+- **The island:** the match of the session that matters most, and its state.
+  A new wait, done or out goes at once. Progress moves in steps of 5 %, at
+  most each 3 minutes. The Usage face moves when a window changes by 2 % or
+  more, or resets, at most each 5 minutes. A wait breaks through the Usage
+  face for 60 s.
+- **A tap opens the session:** the app asks for Face ID, connects and opens
+  the console on that session: on its answer peek if it waits, else on its
+  pane. If the session has ended, the console says `That session ended.`
 - **The setting:** the `Island` entry in the app's console, next to `Hosts`.
   `Follow` is the one host that has the island (the host opened last). `Show`
   is `Sessions`, `Usage` or `Auto (Usage while the stoker runs)`. `Buzz` is
   on or off for each host. A host out of reach keeps its old setting until
   the next connect.
 - **If a push fails,** the Machine tab says `push: <why>`. If the island
-  needs the app, it says `island: open matchblox on the phone to renew`. To
-  stop all of it on a host, set `[push] off = true` in the config: there is
-  then no buzz, no island and no connection to the relay.
-- **`matchblox devices`** shows `push` next to a phone that registered, and
-  `island` next to the one that follows this host.
+  needs the app, it says `island: open matchblox on the phone to renew`.
+- **`[push] off = true`** in the config stops the sender: no buzz, no island
+  update, and the host never connects to the relay. A phone can still
+  register: the host keeps its registration and sends nothing.
+- **`matchblox devices`** shows `buzz on` or `buzz off`, and `island yes` or
+  `island no` (yes for the phone that follows this host), next to each phone.
 
 ### What leaves the host in clear
 
-An update to a Live Activity cannot be encrypted, so the same rule holds
-for the buzz and both faces. The host sends to the relay, and the relay to
-Apple, only:
+The host sends to the relay, and the relay to Apple. An update to a Live
+Activity cannot be encrypted, so it holds only:
 
 - numbers: counts, session and account numbers, and percents;
 - states and progress;
-- times, such as the reset of a window and `out Fri ~20:00`;
-- window short names: `5h`, `wk`;
+- times: when the newest wait began (`wait_at`), when a window resets, and
+  when an account runs out (`out Fri ~20:00`); and the stale date that Apple
+  keeps with an update, which is the end of the 60 s break-through;
+- whether the stoker runs;
+- window short names: `5h`, `wk`, `mo`;
 - `host`: 8 characters of the fingerprint of the host key.
 
-No session name, account name, provider, path or text leaves the host. The
-app turns a number into a name on the phone, from what it learned in the
+No session name, account name, provider, path or text is in an update.
+
+**The buzz has one sealed blob.** It is a line of the host's label, the
+session's name and a state word, with the last line of what the agent said,
+cut to 120 characters. The host seals it to the notification key of that
+phone (HPKE), and only the app's Notification Service Extension can open it.
+The relay and Apple see only ciphertext, the session number and `host`. The
+alert that Apple shows before the extension runs says only `matchblox`, with
+a sound; the start of an island has the title and the body `matchblox`.
+
+The app turns a number into a name on the phone, from what it learned in the
 console (`session 12` and `account 3` where it knows none). The relay stores
 nothing and logs no payload. A state is under 2 KB.
 
