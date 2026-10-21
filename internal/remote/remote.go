@@ -441,3 +441,22 @@ func (l *lockedBuffer) String() string {
 	defer l.mu.Unlock()
 	return l.b.String()
 }
+
+var ttyRE = regexp.MustCompile(`^/dev/[A-Za-z0-9_/-]{1,32}$`)
+
+// ClientTTY tells if tty is the name of a terminal device, as SSH_TTY and
+// tmux's client_tty give it: the client a focus moves.
+func ClientTTY(tty string) bool { return ttyRE.MatchString(tty) }
+
+// FocusArgv moves the tmux client on tty to pane: a tap on the island or a
+// buzz opens the session's pane on the phone, and on no other terminal.
+func FocusArgv(tty, pane string) []string {
+	return []string{"tmux", "switch-client", "-c", tty, "-t", pane}
+}
+
+// FocusAllowed is exactly FocusArgv of a terminal device and a pane id. It
+// is not a Nav step: the gate never runs it.
+func FocusAllowed(argv []string) bool {
+	return len(argv) == 6 && argv[0] == "tmux" && argv[1] == "switch-client" &&
+		argv[2] == "-c" && ClientTTY(argv[3]) && argv[4] == "-t" && PaneID(argv[5])
+}

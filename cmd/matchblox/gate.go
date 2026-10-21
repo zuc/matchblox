@@ -58,7 +58,7 @@ func gateMain(args []string) error {
 	if open {
 		// The console's home session ignores arguments: the service tells
 		// it which session to open. No service: the console just opens.
-		_ = gateFocus(n)
+		_ = gateFocus(n, os.Getenv("SSH_TTY"))
 	}
 	return gateRun(argv)
 }
@@ -144,11 +144,32 @@ func openTarget(orig string) (n int, ok bool) {
 func isOpen(orig string) bool { _, ok := openTarget(orig); return ok }
 
 // gateFocus asks the running service to focus the session of island number
-// n; tests replace it.
-var gateFocus = func(n int) error {
-	res, err := doAct(transport.SocketPath(), proto.Act{RecID: service.FocusAct(n)})
-	if err == nil && res.Err != "" {
-		err = errors.New(res.Err)
+// n and move the phone's tmux client (tty) to it; tests replace it.
+var gateFocus = func(n int, tty string) error {
+	return sendFocus(func(a proto.Act) (proto.Result, error) { return doAct(transport.SocketPath(), a) }, n, tty)
+}
+
+// focusTimeout bounds the focus act: the phone waits on it in the
+// foreground, and the console opens without it.
+var focusTimeout = 2 * time.Second
+
+// sendFocus sends the focus act of number n for the client on tty through
+// do, and gives up after focusTimeout.
+func sendFocus(do func(proto.Act) (proto.Result, error), n int, tty string) error {
+	done := make(chan error, 1)
+	go func() {
+		res, err := do(proto.Act{RecID: service.FocusAct(n), Text: tty})
+		if err == nil && res.Err != "" {
+			err = errors.New(res.Err)
+		}
+		done <- err
+	}()
+	timer := time.NewTimer(focusTimeout)
+	defer timer.Stop()
+	select {
+	case err := <-done:
+		return err
+	case <-timer.C:
+		return errors.New("the service did not answer the focus")
 	}
-	return err
 }

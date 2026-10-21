@@ -56,6 +56,7 @@ type Doc struct {
 type Focus struct {
 	SessionID string    `json:"session_id,omitempty"`
 	Pane      string    `json:"pane,omitempty"`
+	Client    string    `json:"client,omitempty"`
 	Gone      bool      `json:"gone,omitempty"`
 	At        time.Time `json:"at"`
 }

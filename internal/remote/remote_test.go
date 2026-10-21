@@ -366,3 +366,39 @@ func TestValidDeviceKey(t *testing.T) {
 		}
 	}
 }
+
+func TestClientTTYIsADeviceName(t *testing.T) {
+	for tty, ok := range map[string]bool{
+		"/dev/ttys004": true, "/dev/pts/3": true,
+		"": false, "ttys004": false, "/dev/": false, "/dev/tty;x": false, "/dev/tty x": false,
+		"/dev/#(id)": false, "/dev/../etc/passwd": false, "/dev/" + strings.Repeat("a", 64): false,
+	} {
+		if got := ClientTTY(tty); got != ok {
+			t.Errorf("ClientTTY(%q) = %v", tty, got)
+		}
+	}
+}
+
+// The focus moves one client, named by its tty, to one pane: nothing else.
+func TestFocusAllowedIsExact(t *testing.T) {
+	for _, c := range []struct {
+		argv []string
+		ok   bool
+	}{
+		{FocusArgv("/dev/ttys004", "%1"), true},
+		{[]string{"tmux", "switch-client", "-c", "/dev/ttys004", "-t", "%1"}, true},
+		{[]string{"tmux", "switch-client", "-t", "%1"}, false},
+		{[]string{"tmux", "switch-client", "-c", "/dev/tty;x", "-t", "%1"}, false},
+		{[]string{"tmux", "switch-client", "-c", "/dev/ttys004", "-t", "%1;x"}, false},
+		{[]string{"tmux", "attach-session", "-c", "/dev/ttys004", "-t", "%1"}, false},
+		{[]string{"tmux", "switch-client", "-t", "%1", "-c", "/dev/ttys004"}, false},
+	} {
+		if got := FocusAllowed(c.argv); got != c.ok {
+			t.Errorf("FocusAllowed(%q) = %v", c.argv, got)
+		}
+	}
+	// The gate's and the console's nav allowlist does not grow.
+	if NavAllowed(FocusArgv("/dev/ttys004", "%1")) {
+		t.Error("NavAllowed takes the focus's -c")
+	}
+}

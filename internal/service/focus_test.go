@@ -38,10 +38,16 @@ func focusOf(s *Service) *state.Focus {
 func TestTheFocusActNamesTheSession(t *testing.T) {
 	s, n, now := focusService(t)
 	num := n.Session("sess-a")
-	if res := s.act(context.Background(), proto.Act{RecID: FocusAct(num)}); res.Err != "" {
+	if res := s.act(context.Background(), proto.Act{RecID: FocusAct(num), Text: "/dev/ttys004"}); res.Err != "" {
 		t.Fatal(res.Err)
 	}
-	if f := focusOf(s); f == nil || *f != (state.Focus{SessionID: "sess-a", Pane: "%1", At: *now}) {
+	if f := focusOf(s); f == nil || *f != (state.Focus{SessionID: "sess-a", Pane: "%1", Client: "/dev/ttys004", At: *now}) {
+		t.Fatalf("focus = %+v", f)
+	}
+	// A client that is not a tty name moves no client.
+	*now = now.Add(time.Second)
+	s.act(context.Background(), proto.Act{RecID: FocusAct(num), Text: "/dev/tty;kill-server"})
+	if f := focusOf(s); f == nil || f.Client != "" || f.Pane != "%1" {
 		t.Fatalf("focus = %+v", f)
 	}
 }

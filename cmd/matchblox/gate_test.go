@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/blox-eng/matchblox/internal/doors"
+	"github.com/blox-eng/matchblox/internal/proto"
 	"github.com/blox-eng/matchblox/internal/remote"
 	"github.com/blox-eng/matchblox/internal/setup"
 )
@@ -292,12 +293,15 @@ func TestGateOpenFocusesThenRunsTheConsole(t *testing.T) {
 	oldArgs, oldRun, oldFocus := os.Args, gateRun, gateFocus
 	t.Cleanup(func() { os.Args, gateRun, gateFocus = oldArgs, oldRun, oldFocus })
 	var steps []string
-	gateFocus = func(n int) error { steps = append(steps, fmt.Sprint("focus ", n)); return errors.New("no service") }
+	gateFocus = func(n int, tty string) error {
+		steps = append(steps, fmt.Sprint("focus ", n, " ", tty))
+		return errors.New("no service")
+	}
 	gateRun = func(argv []string) error { steps = append(steps, fmt.Sprintf("run %q", argv)); return nil }
 	if err := gateMain([]string{"phone", "0123456789ab"}); err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(steps, []string{"focus 12", `run []`}) {
+	if !slices.Equal(steps, []string{"focus 12 /dev/ttys004", `run []`}) {
 		t.Fatalf("steps %q", steps)
 	}
 	if _, tty, ok := setup.DeviceIn(home, "0123456789ab"); !ok || tty != "/dev/ttys004" {
@@ -308,5 +312,26 @@ func TestGateOpenFocusesThenRunsTheConsole(t *testing.T) {
 	t.Setenv("SSH_ORIGINAL_COMMAND", remote.ConsoleCommand)
 	if err := gateMain([]string{"phone", "0123456789ab"}); err != nil || !slices.Equal(steps, []string{`run []`}) {
 		t.Fatalf("gateMain = %v, steps %q", err, steps)
+	}
+}
+
+// A service that accepts the act but never answers holds the phone for
+// focusTimeout at most: the console opens after it.
+func TestGateFocusIsBounded(t *testing.T) {
+	old := focusTimeout
+	focusTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { focusTimeout = old })
+	start := time.Now()
+	err := sendFocus(func(proto.Act) (proto.Result, error) {
+		time.Sleep(5 * time.Second)
+		return proto.Result{}, nil
+	}, 12, "/dev/ttys004")
+	if err == nil || time.Since(start) > 2*time.Second {
+		t.Fatalf("sendFocus = %v after %v", err, time.Since(start))
+	}
+	var got proto.Act
+	if err := sendFocus(func(a proto.Act) (proto.Result, error) { got = a; return proto.Result{}, nil }, 12, "/dev/ttys004"); err != nil ||
+		got.RecID != "focus:12" || got.Text != "/dev/ttys004" {
+		t.Fatalf("sendFocus = %v, act %+v", err, got)
 	}
 }
