@@ -1,6 +1,6 @@
 # 0010 — The island: the match and the usage, with the app closed
 
-Status: draft (2026-10-21), for the owner's approval. Language: ASD-STE100.
+Status: approved by the owner (2026-10-21). Language: ASD-STE100.
 Code names stay as they are. This design builds #89 (the buzz) and #90 (the
 match on the lock screen) from design/0006 §6.4 and §6.6, adds a usage face
 and a setting, and builds the open path of 0006 §6.3.5 so that a tap opens
