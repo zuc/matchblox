@@ -1,0 +1,7 @@
+{
+  "device_token": "80b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5",
+  "grants": {"a30534a5": "Z3JhbnQtdHdv", "f10f7812": "Z3JhbnQtb25l"},
+  "notify_key": "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA=",
+  "buzz": true,
+  "island": {"start_token": "6162636465666768", "channel": "Y2hhbm5lbC0x"}
+}

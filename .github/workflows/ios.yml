@@ -5,11 +5,13 @@ on:
     paths:
       - "ios/**"
       - "testdata/pair/**"
+      - "testdata/push/**"
       - ".github/workflows/ios.yml"
   pull_request:
     paths:
       - "ios/**"
       - "testdata/pair/**"
+      - "testdata/push/**"
       - ".github/workflows/ios.yml"
 
 permissions:
