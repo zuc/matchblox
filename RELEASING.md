@@ -43,6 +43,33 @@ expired, the Create Release job fails and says so. To replace it:
 2. `gh secret set RELEASE_TOKEN -R blox-eng/matchblox`, and paste it.
 3. Re-run the failed Release run.
 
+## The push relay's secrets
+
+The relay on `matchblox.sh/push/*` (`worker/push.js`) signs pushes with the
+matchblox APNs key and makes grants with an HMAC secret. They live in the
+Worker's secrets, never in the repository:
+
+| Secret | What |
+|---|---|
+| `APNS_KEY` | The APNs auth key: the whole `.p8` file, PEM lines and all |
+| `APNS_KEY_ID` | The key's 10-character Key ID |
+| `APNS_TEAM_ID` | The 10-character Team ID |
+| `APNS_BUNDLE_ID` | The app's bundle id |
+| `GRANT_SECRET` | A random secret for the grants: `openssl rand -hex 32` |
+
+```sh
+npx wrangler secret put APNS_KEY < AuthKey_XXXXXXXXXX.p8
+npx wrangler secret put APNS_KEY_ID
+npx wrangler secret put APNS_TEAM_ID
+npx wrangler secret put APNS_BUNDLE_ID
+openssl rand -hex 32 | npx wrangler secret put GRANT_SECRET
+```
+
+A new `GRANT_SECRET` voids every grant: each phone gets new ones the next
+time the app opens. The optional variable `APNS_ENV = "development"` sends to
+Apple's sandbox and accepts development App Attest keys (a build from Xcode);
+without it the relay is production.
+
 ## When something fails
 
 | What failed | What to do |
