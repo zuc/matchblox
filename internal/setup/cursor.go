@@ -18,6 +18,57 @@ func cursorHooksPath(e Env) string {
 	return filepath.Join(e.Home, ".cursor", "hooks.json")
 }
 
+// cursorConfigPath is the config Cursor's CLI keeps: $CURSOR_CONFIG_DIR,
+// else ~/.cursor.
+func cursorConfigPath(e Env) string {
+	if dir := e.Getenv("CURSOR_CONFIG_DIR"); dir != "" {
+		return filepath.Join(dir, "cli-config.json")
+	}
+	return filepath.Join(e.Home, ".cursor", "cli-config.json")
+}
+
+func cursorLimitsDoor(e Env) doors.Door {
+	path := cursorConfigPath(e)
+	d := doors.Door{ID: doors.CursorLimits, Title: "Show Cursor's context", Path: path,
+		Why: "See the context use, model and window of each Cursor session. Cursor's bar stays as it is, and a status line of your own keeps running."}
+	_, old, _, err := read(path)
+	if err != nil {
+		d.Problem = err.Error()
+		return d
+	}
+	next, err := withStatusLine(old, func(wrapped string) string { return cursorStatusLineCommand(e.Exe, wrapped) })
+	if err != nil {
+		d.Problem = tilde(e.Home, path) + " is not valid JSON (" + err.Error() + "): fix it, then this door opens"
+		return d
+	}
+	if bytes.Equal(next, old) {
+		d.Done = true
+		return d
+	}
+	d.Sum, d.Preview = Sum(old), diff(string(old), string(next))
+	return d
+}
+
+// TapCursorStatusLine makes Cursor's status line run `matchblox hook
+// statusline --cursor`, which keeps each session's context. A status line
+// that is there keeps running inside it.
+func TapCursorStatusLine(path, exe, seen string) (backup string, err error) {
+	return edit(path, seen, func(old []byte) ([]byte, error) {
+		return withStatusLine(old, func(wrapped string) string { return cursorStatusLineCommand(exe, wrapped) })
+	})
+}
+
+func cursorStatusLineCommand(exe, wrapped string) string {
+	if exe == "" {
+		exe = "matchblox"
+	}
+	cmd := shellQuote(exe) + " hook statusline --cursor"
+	if wrapped != "" {
+		cmd += " -- sh -c " + shellQuote(wrapped)
+	}
+	return cmd
+}
+
 func usesCursor(e Env) bool {
 	if _, err := e.LookPath("cursor-agent"); err == nil {
 		return true

@@ -36,7 +36,7 @@ tmux new -s web opencode
 tmux new -s app agent
 ```
 ```
-╿ asks   1m    cursor-agent  app:1.1   —
+╿ asks   1m    cursor-agent  app:1.1   █░░░░░░░░░   6%   ⬢ you@example.com · Acme
 ```
 
 Cursor's CLI counts whether you start it as `agent` or `cursor-agent`. The
@@ -58,7 +58,11 @@ The first run writes the agents it finds to `agents` in the
 
 Claude Code, Codex and OpenCode show their context use, read from the
 agent's own files: the transcript, the rollout, the session storage.
-Before the first turn a session is "fresh".
+Cursor gives it to its status line: open the door "Show Cursor's context"
+in Sessions, or run `matchblox setup`, and each Cursor session shows its
+context, model and window from its first turn. A status line of your own
+keeps running inside it; without one, the line shows what Cursor's bar
+showed (`Auto · 5.7%`). Before the first turn a session is "fresh".
 
 The context use is a share of the session's window. matchblox uses the
 first window it finds, in this order:
@@ -80,6 +84,9 @@ then compacts the session at `compact_tokens` only, never at a percentage.
 On a wide screen, Sessions shows the account of each session: the
 provider's mark, then the email and plan, or "API key". Only those two
 fields are read from the agent's auth files; no token reaches the console.
+Cursor's is the email and team its CLI keeps in `~/.cursor/cli-config.json`
+(`⬢ you@example.com · Acme`), and USAGE lists the account; its plan usage
+is not read yet.
 
 ## How an agent tells that it waits
 

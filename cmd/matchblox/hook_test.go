@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/blox-eng/matchblox/internal/config"
+	"github.com/blox-eng/matchblox/internal/limits"
 	"github.com/blox-eng/matchblox/internal/stoker"
 )
 
@@ -387,5 +388,41 @@ func TestCursorHookPrintsNothingAndSpools(t *testing.T) {
 	}
 	if !bytes.Contains(line, []byte(`"name":"Stop"`)) || !bytes.Contains(line, []byte(`"agent":"cursor-agent"`)) {
 		t.Errorf("spool %s, want a Stop of cursor-agent", line)
+	}
+}
+
+// TestCursorsStatusLineTapsItsPane: Cursor's status line keeps the context
+// of the session in its pane, then prints the status line it wraps, or else
+// the bar it takes the place of.
+func TestCursorsStatusLineTapsItsPane(t *testing.T) {
+	stateDir := t.TempDir()
+	in, err := os.ReadFile("../../testdata/hooks/cursor-statusline.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := func(k string) string {
+		return map[string]string{"TMUX": "/tmp/tmux-501/default,17772,68", "TMUX_PANE": "%70"}[k]
+	}
+	now := time.Date(2026, 10, 21, 20, 0, 0, 0, time.UTC)
+	var out bytes.Buffer
+	if err := cursorStatusLine(nil, bytes.NewReader(in), &out, env, stateDir, now); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "Auto · 5.7%" {
+		t.Errorf("printed %q, want Cursor's own bar", out.String())
+	}
+	if r, ok := limits.ReadCursor(stateDir, "/tmp/tmux-501/default", "%70"); !ok || r.Tokens != 14592 || r.Window != 256000 {
+		t.Errorf("reading %+v %v", r, ok)
+	}
+	out.Reset()
+	if err := cursorStatusLine([]string{"--", "sh", "-c", "grep -c context_window; echo mine"}, bytes.NewReader(in), &out, env, stateDir, now); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "1\nmine\n" {
+		t.Errorf("wrapped printed %q, want the builder's own line, fed the same input", out.String())
+	}
+	out.Reset()
+	if err := cursorStatusLine(nil, strings.NewReader("not json"), &out, env, stateDir, now); err != nil || out.Len() != 0 {
+		t.Errorf("not json: err %v printed %q", err, out.String())
 	}
 }

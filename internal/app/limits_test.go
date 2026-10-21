@@ -248,3 +248,14 @@ func TestStatusTextHasTheLimits(t *testing.T) {
 		}
 	}
 }
+
+// TestCursorsAccountIsInTheDock: a Cursor session's account has a line of
+// its own in USAGE, with Cursor's mark, as every agent's account does.
+func TestCursorsAccountIsInTheDock(t *testing.T) {
+	st := limitsState()
+	st.Limits = append(st.Limits, limits.Account{Provider: "cursor", Account: "builder@example.com · Acme", State: limits.Unmeasured, Fix: "Cursor's plan usage is not read yet"})
+	m, _ := loadedWith(t, 132, st)
+	if out := screen(m); !strings.Contains(out, "⬢ Acme") || !strings.Contains(out, "not measured · Cursor's plan usage is not read yet") {
+		t.Errorf("the dock lacks Cursor's account:\n%s", out)
+	}
+}

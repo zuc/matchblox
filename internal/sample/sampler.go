@@ -629,6 +629,23 @@ func (s *Sampler) sampleSessions(snap *Snapshot, panes []Pane, procs map[int]pro
 				}
 			}
 			lims.add(sess, limits.SourceCodex, lim)
+		case CursorAgent:
+			sess.Account, sess.Provider = s.accounts.cursorAccount(env), "cursor"
+			sess.Context = "unmeasured"
+			tmux, _ := s.FS.Environ(pid, "TMUX")
+			socket, _, _ := strings.Cut(tmux, ",")
+			started := now.Add(-time.Duration((uptime - float64(p.StartTime)/procfs.ClockTicks) * float64(time.Second)))
+			// A reading from before the process started is an earlier
+			// session's in the same pane.
+			if r, ok := limits.ReadCursor(s.LimitsDir, socket, paneID); ok && s.LimitsDir != "" && !r.At.Before(started) {
+				sess.Context = "fresh"
+				if r.Window > 0 {
+					s.measured(&sess, Usage{Model: r.Model, Tokens: r.Tokens, Window: r.Window, At: r.At}, "cursor:"+r.SessionID, now)
+				} else {
+					sess.Model = label(r.Model)
+				}
+			}
+			lims.add(sess, limits.SourceCursor, nil)
 		case "opencode":
 			sess.Context = "unmeasured"
 			if opencodeIn[sess.Cwd] != 1 {

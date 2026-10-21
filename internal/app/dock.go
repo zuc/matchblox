@@ -255,7 +255,7 @@ func (m Model) useStyle(pct float64) lipgloss.Style {
 
 // providerMarks stand for the logos a terminal cannot draw: one cell each,
 // none an emoji.
-var providerMarks = map[string]string{"anthropic": "✻", "openai": "❋", "opencode": "▣"}
+var providerMarks = map[string]string{"anthropic": "✻", "openai": "❋", "opencode": "▣", "cursor": "⬢"}
 
 // accountNames are the short names of the accounts: one account of a
 // provider by its plan, two by the name of their emails.

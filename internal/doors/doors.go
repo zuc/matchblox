@@ -15,13 +15,15 @@ const (
 	Hooks = "hooks"
 	// CursorHooks adds matchblox to Cursor's hooks.
 	CursorHooks = "cursorhooks"
-	Limits      = "limits"
-	SafetyNet   = "safetynet"
-	WayBack     = "wayback"
-	Pair        = "pair"
-	Guide       = "guide"
-	Night       = "night"
-	Ways        = "ways"
+	// CursorLimits taps Cursor's status line for each session's context.
+	CursorLimits = "cursorlimits"
+	Limits       = "limits"
+	SafetyNet    = "safetynet"
+	WayBack      = "wayback"
+	Pair         = "pair"
+	Guide        = "guide"
+	Night        = "night"
+	Ways         = "ways"
 	// KeepRunning writes a user unit, then runs Term: the service writes
 	// the file and runs the command, so the terminal never runs it.
 	KeepRunning = "keeprunning"

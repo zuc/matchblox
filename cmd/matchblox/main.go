@@ -131,6 +131,9 @@ func run(args []string) error {
 			return liveConnect(args[1:])
 		}
 	}
+	if len(args) > 2 && args[0] == "hook" && args[1] == "statusline" && args[2] == "--cursor" {
+		return cursorStatusLine(args[3:], os.Stdin, os.Stdout, os.Getenv, filepath.Dir(state.Path()), time.Now())
+	}
 	if len(args) > 1 && args[0] == "hook" && args[1] == "statusline" {
 		cfg, _ := config.Load(config.Path())
 		return statusLine(args[2:], os.Stdin, os.Stdout, os.Getenv, filepath.Dir(state.Path()), cfg, time.Now())

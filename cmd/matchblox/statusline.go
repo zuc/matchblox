@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/blox-eng/matchblox/internal/config"
@@ -36,5 +37,23 @@ func statusLine(args []string, stdin io.Reader, out io.Writer, env func(string) 
 	}
 	a := limits.Build("anthropic", "", limits.SourceClaude, r, now, cfg.Limits.Quiet)
 	_, err := fmt.Fprint(out, limits.Plain(limits.Parts(a, now)))
+	return err
+}
+
+// cursorStatusLine is Cursor's status line command (`matchblox hook
+// statusline --cursor`): it keeps the context of the session in its pane,
+// then prints the status line it wraps, or else the bar a status line takes
+// the place of. Nothing here fails the status line.
+func cursorStatusLine(args []string, stdin io.Reader, out io.Writer, env func(string) string, stateDir string, now time.Time) error {
+	input, _ := io.ReadAll(stdin)
+	socket, _, _ := strings.Cut(env("TMUX"), ",")
+	_ = limits.TapCursor(input, stateDir, socket, env("TMUX_PANE"), now)
+	if len(args) > 1 && args[0] == "--" {
+		cmd := exec.Command(args[1], args[2:]...) //nolint:gosec // the builder's own status line, from their config
+		cmd.Stdin, cmd.Stdout, cmd.Stderr = bytes.NewReader(input), out, os.Stderr
+		_ = cmd.Run()
+		return nil
+	}
+	_, err := fmt.Fprint(out, limits.CursorLine(input))
 	return err
 }

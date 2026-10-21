@@ -32,6 +32,7 @@ const (
 	SourceClaude   = "claude-statusline"
 	SourceCodex    = "codex"
 	SourceOpenCode = "opencode"
+	SourceCursor   = "cursor"
 )
 
 // Window is one limit as the agent reported it.
@@ -155,6 +156,8 @@ func fixFor(source, account string, read bool) string {
 		return "this Codex login reports no limits"
 	case source == SourceCodex:
 		return "Codex reports them after its next turn"
+	case source == SourceCursor:
+		return "Cursor's plan usage is not read yet"
 	default:
 		return "OpenCode keeps no limits"
 	}

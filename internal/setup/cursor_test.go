@@ -156,3 +156,84 @@ func TestCursorHooksOnBrokenJSONSayHowToFix(t *testing.T) {
 		t.Errorf("problem %q, want it to name ~/.cursor/hooks.json", d.Problem)
 	}
 }
+
+func cursorConfig(t *testing.T, e Env, body string) string {
+	t.Helper()
+	p := filepath.Join(e.Home, ".cursor", "cli-config.json")
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func statusCommand(t *testing.T, p string) string {
+	t.Helper()
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f struct {
+		StatusLine struct {
+			Type    string `json:"type"`
+			Command string `json:"command"`
+			Padding int    `json:"padding"`
+		} `json:"statusLine"`
+	}
+	if err := json.Unmarshal(b, &f); err != nil {
+		t.Fatalf("%s: %v", b, err)
+	}
+	if f.StatusLine.Type != "command" {
+		t.Errorf("type %q", f.StatusLine.Type)
+	}
+	return f.StatusLine.Command
+}
+
+// TestCursorContextDoorTapsCursorsStatusLine: the tap goes into Cursor's
+// status line, and every other key of its config keeps its bytes.
+func TestCursorContextDoorTapsCursorsStatusLine(t *testing.T) {
+	e := cursorEnv(t)
+	p := cursorConfig(t, e, "{\n  \"version\": 1,\n  \"editor\": {\n    \"vimMode\": false\n  }\n}\n")
+	open(t, e, doors.CursorLimits)
+	if got := statusCommand(t, p); got != exe+" hook statusline --cursor" {
+		t.Errorf("command %q", got)
+	}
+	b, _ := os.ReadFile(p)
+	if !strings.Contains(string(b), "\"editor\": {\n    \"vimMode\": false\n  }") {
+		t.Errorf("the other keys moved:\n%s", b)
+	}
+	if d := door(t, e, doors.CursorLimits); !d.Done {
+		t.Errorf("door after open: %+v, want done", d)
+	}
+}
+
+// TestCursorContextDoorKeepsYourStatusLine: a status line there keeps
+// running inside the tap, with its other settings.
+func TestCursorContextDoorKeepsYourStatusLine(t *testing.T) {
+	e := cursorEnv(t)
+	p := cursorConfig(t, e, `{"statusLine": {"type": "command", "command": "~/.cursor/statusline.sh", "padding": 2}}`)
+	open(t, e, doors.CursorLimits)
+	if got := statusCommand(t, p); got != exe+" hook statusline --cursor -- sh -c '~/.cursor/statusline.sh'" {
+		t.Errorf("command %q", got)
+	}
+	b, _ := os.ReadFile(p)
+	if !strings.Contains(string(b), `"padding": 2`) {
+		t.Errorf("padding lost:\n%s", b)
+	}
+}
+
+func TestCursorContextDoorReadsCursorsConfigDir(t *testing.T) {
+	e := cursorEnv(t)
+	dir := filepath.Join(e.Home, "elsewhere")
+	e.Getenv = func(k string) string {
+		if k == "CURSOR_CONFIG_DIR" {
+			return dir
+		}
+		return ""
+	}
+	if d := door(t, e, doors.CursorLimits); d.Path != filepath.Join(dir, "cli-config.json") {
+		t.Errorf("path %q, want the one in CURSOR_CONFIG_DIR", d.Path)
+	}
+}

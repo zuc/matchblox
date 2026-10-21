@@ -56,7 +56,7 @@ func Doors(e Env) []doors.Door {
 		ds = append(ds, hooksDoor(e))
 	}
 	if usesCursor(e) {
-		ds = append(ds, cursorHooksDoor(e))
+		ds = append(ds, cursorHooksDoor(e), cursorLimitsDoor(e))
 	}
 	if usesClaude(e) {
 		ds = append(ds, limitsDoor(e), safetyNetDoor(e))
@@ -84,6 +84,8 @@ func Open(e Env, id, seen string, also bool) (backup string, err error) {
 		return AddHooks(settingsPath(e), e.Exe, seen)
 	case doors.CursorHooks:
 		return AddCursorHooks(cursorHooksPath(e), e.Exe, seen)
+	case doors.CursorLimits:
+		return TapCursorStatusLine(cursorConfigPath(e), e.Exe, seen)
 	case doors.Limits:
 		return TapStatusLine(settingsPath(e), e.Exe, seen)
 	case doors.SafetyNet:
@@ -100,7 +102,7 @@ func Open(e Env, id, seen string, also bool) (backup string, err error) {
 	return "", fmt.Errorf("no door %q", id)
 }
 
-var known = []string{doors.Tmux, doors.Hooks, doors.CursorHooks, doors.Limits, doors.SafetyNet, doors.WayBack, doors.Pair, doors.KeepRunning, doors.Guide, doors.Night, doors.Ways}
+var known = []string{doors.Tmux, doors.Hooks, doors.CursorHooks, doors.CursorLimits, doors.Limits, doors.SafetyNet, doors.WayBack, doors.Pair, doors.KeepRunning, doors.Guide, doors.Night, doors.Ways}
 
 // Close hides a door from the console; `matchblox setup` shows it again.
 func Close(e Env, id string) error {

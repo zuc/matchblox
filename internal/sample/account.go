@@ -19,6 +19,7 @@ type agentEnv struct {
 	claudeDir  string // CLAUDE_CONFIG_DIR, else ~/.claude
 	claudeJSON string // .claude.json next to it: in CLAUDE_CONFIG_DIR, else in the home
 	codexHome  string // CODEX_HOME, else ~/.codex
+	cursorDir  string // CURSOR_CONFIG_DIR, else ~/.cursor
 	dataHome   string // XDG_DATA_HOME, else ~/.local/share
 	cacheHome  string // XDG_CACHE_HOME, else ~/.cache
 	cloud      string // bedrock or vertex: Claude Code signs in through the cloud
@@ -53,6 +54,7 @@ func (s *Sampler) envOf(pid int, key procKey) agentEnv {
 		claudeDir:  under(".claude"),
 		claudeJSON: under(".claude.json"),
 		codexHome:  abs(get("CODEX_HOME"), under(".codex")),
+		cursorDir:  abs(get("CURSOR_CONFIG_DIR"), under(".cursor")),
 		dataHome:   abs(get("XDG_DATA_HOME"), under(".local", "share")),
 		cacheHome:  abs(get("XDG_CACHE_HOME"), under(".cache")),
 	}
@@ -217,6 +219,23 @@ func idClaims(jwt string) (email, plan string) {
 		return "", ""
 	}
 	return c.Email, c.Auth.Plan
+}
+
+// cursorAccount reads the login Cursor's CLI keeps in its cli-config.json:
+// the email and the team, nothing else. Its tokens are in the Keychain.
+func (a *accounts) cursorAccount(e agentEnv) string {
+	return readCached(a.labels, joinIn(e.cursorDir, "cli-config.json"), func(b []byte) string {
+		var f struct {
+			Auth *struct {
+				Email string `json:"email"`
+				Team  string `json:"teamName"`
+			} `json:"authInfo"`
+		}
+		if json.Unmarshal(b, &f) != nil || f.Auth == nil || f.Auth.Email == "" {
+			return ""
+		}
+		return label(f.Auth.Email, f.Auth.Team)
+	})
 }
 
 var opencodeAuth = map[string]string{"api": "API key", "oauth": "login", "wellknown": "login"}

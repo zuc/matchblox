@@ -19,6 +19,31 @@ All notable changes to matchblox are in this file. The format follows
   breaks through the Usage face for 60 s.
 - **A tap opens that session.** The activity, its `Answer` and a buzz open
   the console on that session after Face ID. The app needs iOS 18.
+=======
+- **Cursor sessions show their context, model and account.** A new setup
+  step, "Show Cursor's context", taps Cursor's status line: each Cursor
+  session then shows its context use and window from its first turn, as
+  Claude Code's do, and Cursor's bar still shows. The account is the email
+  and team in `~/.cursor/cli-config.json`, marked `⬢`, and USAGE lists it.
+  Cursor's plan usage is not read yet.
+>>>>>>> origin/main
+
+### Changed
+
+- **The app needs iOS 18.** It needed 17.2. The island's channel needs
+  iOS 18.
+- **A phone paired before this release gets an id.** At start the service
+  gives each old phone line in `~/.ssh/authorized_keys` an id, with a
+  backup, so the phone can register for the buzz without pairing again.
+  `serve.log` says how many lines it changed.
+- **`matchblox devices` shows the push of each phone.** A phone's row says
+  `buzz on` or `buzz off`, and `island yes` or `island no`.
+- **`[push] relay` names the relay.** It is `https://matchblox.sh`.
+
+## [0.13.0] - 2026-10-21
+
+### Added
+
 - **The box opens: pair a device in one gesture.** The door "Pair a
   device" and `DEVICES` on the Machine tab open the pair page in the
   console. It shows the matchbox with the code on its label. When the app
@@ -39,15 +64,6 @@ All notable changes to matchblox are in this file. The format follows
 
 - **Build the app again with this release.** An older app cannot read the
   v2 link and says "This code is damaged…". The new app reads v1 and v2.
-- **The app needs iOS 18.** It needed 17.2. The island's channel needs
-  iOS 18.
-- **A phone paired before this release gets an id.** At start the service
-  gives each old phone line in `~/.ssh/authorized_keys` an id, with a
-  backup, so the phone can register for the buzz without pairing again.
-  `serve.log` says how many lines it changed.
-- **`matchblox devices` shows the push of each phone.** A phone's row says
-  `buzz on` or `buzz off`, and `island yes` or `island no`.
-- **`[push] relay` names the relay.** It is `https://matchblox.sh`.
 
 ## [0.12.0] - 2026-10-21
 
@@ -433,7 +449,8 @@ the host, over SSH and from a phone.
   version, and `matchblox version` names it.
 - **Docs** at [docs.matchblox.com](https://docs.matchblox.com).
 
-[Unreleased]: https://github.com/blox-eng/matchblox/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/blox-eng/matchblox/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/blox-eng/matchblox/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/blox-eng/matchblox/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/blox-eng/matchblox/compare/v0.10.3...v0.11.0
 [0.10.3]: https://github.com/blox-eng/matchblox/compare/v0.10.2...v0.10.3
