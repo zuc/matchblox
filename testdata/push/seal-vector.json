@@ -1,0 +1,10 @@
+{
+  "note": "HPKE base mode (RFC 9180), no PSK, no auth, empty AAD. sealed = enc (32 bytes) || ciphertext. CryptoKit: HPKE.Recipient(privateKey:ciphersuite:info:encapsulatedKey:).open(ciphertext, authenticating: Data()). All binary fields are standard base64; info and plain are UTF-8 text.",
+  "suite": "DHKEM(X25519, HKDF-SHA256) / HKDF-SHA256 / ChaCha20Poly1305",
+  "info": "matchblox buzz v1",
+  "aad": "",
+  "private_key": "oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr8=",
+  "public_key": "YFpyXSpK3+6xop4X7dYhwbdZPujNvESsbEq24vgF0jw=",
+  "plain": "work-1 · api waits: \"Run the migration?\"",
+  "sealed": "/TRJnpMBD5c8hdgNWwdv/8/s1TuZJN4SExn5zNv7+jjP1oeeqQJS1OlNbiresH+hms9CyJpx1aIVQwr1JmmZrrl+BuA7VlSX7FwkPqq5jRmEzHiuHYZ4rv8="
+}
