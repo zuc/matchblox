@@ -71,6 +71,9 @@ func (m Model) chart(xs []float64, w, h int, top float64) []string {
 func (m Model) machine(w int) []string {
 	mc, st, h := m.snap.Machine, m.st, m.history
 	out := m.alertLines(w)
+	if m.push != "" {
+		out = append(out, fit(" "+st.warn.Render(m.push), w))
+	}
 
 	out = append(out, m.region("cpu", w)...)
 	out = append(out, fit(" "+st.text.Render(fmt.Sprintf("%3.0f%%", mc.CPU))+st.muted.Render(fmt.Sprintf(

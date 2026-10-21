@@ -48,6 +48,7 @@ import (
 	"github.com/blox-eng/matchblox/internal/panes"
 	"github.com/blox-eng/matchblox/internal/procfs"
 	"github.com/blox-eng/matchblox/internal/proto"
+	"github.com/blox-eng/matchblox/internal/push"
 	"github.com/blox-eng/matchblox/internal/remote"
 	"github.com/blox-eng/matchblox/internal/sample"
 	"github.com/blox-eng/matchblox/internal/service"
@@ -530,6 +531,16 @@ func newService(cfg config.Config, root string) *service.Service {
 		fmt.Fprintln(os.Stderr, "matchblox: parking is off:", err)
 	}
 	s.Ships = shipsSource(cfg, filepath.Dir(s.StatePath))
+	if n, err := push.OpenNumbers(filepath.Dir(s.StatePath)); err == nil {
+		s.PushNumbers = n
+		if p, err := pushSender(cfg.Push, home(), defaultHostKey, n); err != nil {
+			fmt.Fprintln(os.Stderr, "matchblox: push is off:", err)
+		} else {
+			s.Push = p
+		}
+	} else {
+		fmt.Fprintln(os.Stderr, "matchblox: push is off: numbers:", err)
+	}
 	return s
 }
 
@@ -564,6 +575,9 @@ func invokedPath(arg0 string) string {
 // serve runs the service on the socket until a signal, or until the binary
 // on disk is replaced (the next console starts the new one).
 func serve(path string, s *service.Service) error {
+	if s.Push != nil {
+		defer s.Push.Close()
+	}
 	l, err := transport.Listen(path)
 	if errors.Is(err, transport.ErrInUse) {
 		fmt.Fprintf(os.Stderr, "matchblox: the service already runs on %s (pid %d)\n", path, transport.Owner(path))

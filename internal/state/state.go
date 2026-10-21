@@ -49,6 +49,10 @@ type Doc struct {
 	// for a short while after: each console acts on it once, by its At.
 	// Nil: none.
 	Focus *Focus `json:"focus,omitempty"`
+	// Push is the push sender's one line for the Machine tab: `push: <why>`
+	// after a failed send, or the island's renewal. Empty: all is well, or
+	// no sender ([push] off).
+	Push string `json:"push,omitempty"`
 }
 
 // Focus is the session to open: its pane, or Gone when its number's

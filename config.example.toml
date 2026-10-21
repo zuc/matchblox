@@ -60,6 +60,10 @@ max_steps = 60           # the most messages that agent sends in one run
 quiet_hours = "23:00-08:00"  # hours you do not usually work, in this machine's time zone: the forecast counts them as a tenth
 quiet_days = ["Sat", "Sun"]  # days you do not usually work
 
+[push]                   # the buzz and the island on the phones that registered
+relay = "https://matchblox.sh"  # the relay that hands them to Apple; it stores nothing
+off = false              # true: no buzz, no island, and no connection to the relay
+
 [hooks]
 alert = []               # argv run on each new alert, title and evidence appended,
                          # e.g. ["notify-send", "matchblox"]

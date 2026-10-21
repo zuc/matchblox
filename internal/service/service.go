@@ -120,6 +120,9 @@ type Service struct {
 	// PushNumbers are the island's numbers of sessions and accounts; the
 	// names act names them. Nil: it names nothing.
 	PushNumbers *push.Numbers
+	// Push sends the buzz and the island of each published doc. Nil: none
+	// ([push] off, or a fixture).
+	Push *push.Sender
 
 	// alone is when the last console closed; zero while one is open. A new
 	// service starts alone.
@@ -365,9 +368,18 @@ func (s *Service) publish(snap sample.Snapshot, rec func(state.Doc)) {
 	s.cur.Recommendations = advice.Build(snap, s.cur.Git)
 	s.mergeQueue()
 	s.expireFocus(s.now())
+	s.cur.Push = ""
+	if s.Push != nil {
+		s.cur.Push = s.Push.Status() // the last send's: this doc's goes after
+	}
 	doc := s.cur
 	s.mu.Unlock()
 	rec(doc)
+	if s.Push != nil {
+		// Every tick, changed or not: a change the rates held goes out on
+		// the first tick after its wait. OnDoc never blocks.
+		s.Push.OnDoc(doc)
+	}
 	s.broadcast()
 }
 

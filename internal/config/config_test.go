@@ -77,6 +77,17 @@ func TestExampleLoads(t *testing.T) {
 	if d := Default(); c.Stoker != d.Stoker || d.Stoker.Agent != "claude" || d.Stoker.MaxSteps != 60 {
 		t.Fatalf("the example must state the stoker defaults: %+v", c.Stoker)
 	}
+	if d := Default(); c.Push != d.Push || d.Push.Relay != "https://matchblox.sh" || d.Push.Off {
+		t.Fatalf("the example must state the push defaults: %+v", c.Push)
+	}
+}
+
+// TestPushOff: [push] off turns the sender off; relay names another relay.
+func TestPushOff(t *testing.T) {
+	c, err := Load(write(t, "[push]\noff = true\nrelay = \"http://127.0.0.1:9\"\n"))
+	if err != nil || !c.Push.Off || c.Push.Relay != "http://127.0.0.1:9" {
+		t.Fatalf("push %+v, %v", c.Push, err)
+	}
 }
 
 // TestTheStokersPaneKeyIsGone: matchblox starts the stoker agent

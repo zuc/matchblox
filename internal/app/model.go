@@ -222,6 +222,7 @@ type Model struct {
 	width      int
 	height     int
 	snap       sample.Snapshot
+	push       string // the push sender's line for the Machine tab, or ""
 	have       bool
 	git        *proto.GitReport
 	recs       []advice.Rec
@@ -449,6 +450,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.shipReport = st.Ships
 		m.holds, m.reasons = st.Holds, st.Reasons
 		m.agents, m.renames = st.Agents, st.Renames
+		m.push = st.Push
 		if m.recRun.rec != "" && m.recRun.act == "" && !m.isRec(m.recRun.rec) {
 			m.recRun = recRun{} // its rec is gone: a later one with the same id starts fresh
 		}
