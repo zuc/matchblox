@@ -700,3 +700,133 @@ func TestNoPhoneLeftClearsTheStatus(t *testing.T) {
 		t.Fatalf("status with no phone %q", st)
 	}
 }
+
+// A channel update that fails is sent again, not swallowed: at most once a
+// minute while the relay fails, never each tick.
+func TestAFailedUpdateIsSentAgain(t *testing.T) {
+	var mu sync.Mutex
+	down := false
+	r := &fakeRelay{fail: func(e Event) error {
+		mu.Lock()
+		defer mu.Unlock()
+		if e.Kind == "channel" && down {
+			down = false
+			return &RelayError{Code: http.StatusServiceUnavailable}
+		}
+		return nil
+	}}
+	c := &clock{t: t0}
+	p, _ := phone(t, "a", false, true)
+	s := newSender(t, r, c, p)
+
+	s.handle(burning(10))
+	r.take()
+	c.add(time.Second)
+	d := burning(10)
+	d.Sessions = append(d.Sessions, sess("w", false, t0))
+	d.Queue = []queue.Item{{SessionID: "w", State: queue.StatePermission, Since: t0}}
+	mu.Lock()
+	down = true
+	mu.Unlock()
+	s.handle(d) // the update fails
+	if ev := ofKind(r.take(), "channel"); len(ev) != 1 {
+		t.Fatalf("the update: %+v", ev)
+	}
+	for range 29 {
+		c.add(2 * time.Second)
+		s.handle(d)
+		if ev := ofKind(r.take(), "channel"); len(ev) != 0 {
+			t.Fatalf("sent again within a minute: %+v", ev)
+		}
+	}
+	c.add(2 * time.Second)
+	s.handle(d)
+	ev := ofKind(r.take(), "channel")
+	if len(ev) != 1 || liveOf(t, ev[0]).APS.State.Wait != 1 {
+		t.Fatalf("the failed update is never sent again: %+v", ev)
+	}
+	c.add(2 * time.Second)
+	s.handle(d)
+	if ev := r.take(); len(ev) != 0 {
+		t.Fatalf("an update after the good one: %+v", ev)
+	}
+}
+
+// The minute after a failed update holds only the same state: a new change
+// goes at once.
+func TestANewChangeGoesAtOnceAfterAFailedUpdate(t *testing.T) {
+	var mu sync.Mutex
+	down := true
+	r := &fakeRelay{fail: func(e Event) error {
+		mu.Lock()
+		defer mu.Unlock()
+		if e.Kind == "channel" && down {
+			down = false
+			return &RelayError{Code: http.StatusServiceUnavailable}
+		}
+		return nil
+	}}
+	c := &clock{t: t0}
+	p, _ := phone(t, "a", false, true)
+	s := newSender(t, r, c, p)
+
+	s.handle(waiting("x"))
+	r.take()
+	c.add(time.Second)
+	s.handle(waiting("x", "y")) // fails
+	r.take()
+	c.add(10 * time.Second)
+	s.handle(waiting("x", "y", "z"))
+	ev := ofKind(r.take(), "channel")
+	if len(ev) != 1 || liveOf(t, ev[0]).APS.State.Wait != 3 {
+		t.Fatalf("the new wait is held by the failure: %+v", ev)
+	}
+}
+
+// When Follow moves to another host the app ends this host's activity and
+// registers here without an island; following back must start it anew.
+func TestFollowingBackStartsTheIslandAgain(t *testing.T) {
+	for name, restart := range map[string]bool{"in one run": false, "across a restart": true} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			r := &fakeRelay{}
+			c := &clock{t: t0}
+			p, _ := phone(t, "a", false, true)
+			away := p
+			away.Island = nil
+			ps := &livePhones{regs: []Registration{p}}
+			s := NewSender(r, ps, openNumbers(t, dir), dir, fp, c.now)
+			t.Cleanup(func() { s.Close() })
+
+			s.handle(burning(10))
+			if ev := ofKind(r.take(), "start"); len(ev) != 1 {
+				t.Fatalf("first start %+v", ev)
+			}
+			if restart {
+				s.Close()
+				s = NewSender(r, ps, openNumbers(t, dir), dir, fp, c.now)
+			}
+			c.add(time.Minute)
+			ps.mu.Lock()
+			ps.regs = []Registration{away}
+			ps.mu.Unlock()
+			s.handle(burning(10))
+			if ev := r.take(); len(ev) != 0 {
+				t.Fatalf("events while away: %+v", ev)
+			}
+			c.add(time.Minute)
+			ps.mu.Lock()
+			ps.regs = []Registration{p}
+			ps.mu.Unlock()
+			s.handle(burning(10))
+			if ev := ofKind(r.take(), "start"); len(ev) != 1 || ev[0].Target != "start-a" {
+				t.Fatalf("no new start after following back: %+v", ev)
+			}
+			c.add(time.Minute)
+			s.handle(burning(10))
+			if ev := ofKind(r.take(), "start"); len(ev) != 0 {
+				t.Fatalf("a start after the new start: %+v", ev)
+			}
+		})
+	}
+}

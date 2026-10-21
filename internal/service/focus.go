@@ -36,7 +36,7 @@ func (s *Service) focus(a proto.Act) proto.Result {
 		return proto.Result{Err: notTheBuilders}
 	}
 	if s.PushNumbers == nil {
-		// No numbers (Task 9 sets them in newService): nothing to resolve.
+		// No numbers (push could not open numbers.json): nothing to resolve.
 		// Saying "That session ended." of a session that may well run would
 		// be wrong, so the consoles just open where they are.
 		return proto.Result{}

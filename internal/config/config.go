@@ -5,6 +5,8 @@ package config
 import (
 	"errors"
 	"io/fs"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -204,6 +206,9 @@ func Load(path string) (Config, error) {
 	if c.Limits.Quiet, err = limits.ParseQuiet(c.Limits.QuietHours, c.Limits.QuietDays); err != nil {
 		return c, errors.New("limits.quiet_hours or quiet_days: " + err.Error())
 	}
+	if !c.Push.Off && !safeRelay(c.Push.Relay) {
+		return c, errors.New("push.relay: " + c.Push.Relay + " is not https (plain http only to this machine)")
+	}
 	for i := range c.Groups {
 		re, err := regexp.Compile(c.Groups[i].Container)
 		if err != nil {
@@ -212,4 +217,28 @@ func Load(path string) (Config, error) {
 		c.Groups[i].re = re
 	}
 	return c, nil
+}
+
+// safeRelay says whether the relay may get device tokens and grants: https,
+// or plain http to a loopback address, as a relay on this machine is. Empty is
+// the default relay.
+func safeRelay(relay string) bool {
+	if relay == "" {
+		return true
+	}
+	u, err := url.Parse(relay)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	switch u.Scheme {
+	case "https":
+		return true
+	case "http":
+		if u.Hostname() == "localhost" {
+			return true
+		}
+		ip := net.ParseIP(u.Hostname())
+		return ip != nil && ip.IsLoopback()
+	}
+	return false
 }

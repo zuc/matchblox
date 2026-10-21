@@ -59,7 +59,7 @@ func TestRegisterRepliesTheNames(t *testing.T) {
 		return map[int]string{1: "api", 3: "docs"}, map[int]string{2: "claude work"}
 	}
 	before := time.Now()
-	req := push.RegisterRequest{DeviceToken: "tok", Grants: map[string]string{"device:tok": "g"}, NotifyKey: []byte{1, 2}, Buzz: true,
+	req := push.RegisterRequest{DeviceToken: "tok", Grants: map[string]string{"device:tok": "g"}, NotifyKey: make([]byte, 32), Buzz: true,
 		Island: &push.IslandReg{StartToken: "start", Channel: "chan"}}
 	got := register(t, home, regID, registerLine(t, req), names)
 	if want := `{"ok":true,"sessions":{"1":"api","3":"docs"},"accounts":{"2":"claude work"}}` + "\n"; got != want {
@@ -94,12 +94,13 @@ func TestRegisterKeepsOneRegistrationPerPhone(t *testing.T) {
 func TestRegisterRefusesABadRequest(t *testing.T) {
 	good := registerLine(t, push.RegisterRequest{DeviceToken: "tok"})
 	for name, c := range map[string]struct{ id, in, reply string }{
-		"too long":        {regID, `{"device_token":"` + strings.Repeat("x", 5000) + `"}` + "\n", `{"ok":false,"error":"bad request"}`},
-		"bad json":        {regID, "hello\n", `{"ok":false,"error":"bad request"}`},
-		"empty":           {regID, "", `{"ok":false,"error":"bad request"}`},
-		"unterminated":    {regID, strings.Repeat("{", 5000), `{"ok":false,"error":"bad request"}`},
-		"no device token": {regID, `{"buzz":true}` + "\n", `{"ok":false,"error":"no device token"}`},
-		"unknown device":  {"aaaaaaaaaaaa", good, `{"ok":false,"error":"unknown device"}`},
+		"too long":         {regID, `{"device_token":"` + strings.Repeat("x", 5000) + `"}` + "\n", `{"ok":false,"error":"bad request"}`},
+		"bad json":         {regID, "hello\n", `{"ok":false,"error":"bad request"}`},
+		"empty":            {regID, "", `{"ok":false,"error":"bad request"}`},
+		"unterminated":     {regID, strings.Repeat("{", 5000), `{"ok":false,"error":"bad request"}`},
+		"no device token":  {regID, `{"buzz":true}` + "\n", `{"ok":false,"error":"no device token"}`},
+		"short notify key": {regID, `{"device_token":"t","buzz":true,"notify_key":"AQI="}` + "\n", `{"ok":false,"error":"bad notify key"}`},
+		"unknown device":   {"aaaaaaaaaaaa", good, `{"ok":false,"error":"unknown device"}`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			home := homeWithPhoneID(t)

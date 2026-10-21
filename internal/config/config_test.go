@@ -90,6 +90,26 @@ func TestPushOff(t *testing.T) {
 	}
 }
 
+// TestThePushRelayIsHTTPS: the relay gets device tokens and grants, so only
+// https, or plain http to this machine.
+func TestThePushRelayIsHTTPS(t *testing.T) {
+	for relay, ok := range map[string]bool{
+		"https://relay.example":   true,
+		"http://127.0.0.1:9":      true,
+		"http://localhost:8787":   true,
+		"http://[::1]:9":          true,
+		"http://relay.example":    false,
+		"http://127.0.0.1.nip.io": false,
+		"ftp://relay.example":     false,
+		"relay.example":           false,
+	} {
+		_, err := Load(write(t, "[push]\nrelay = \""+relay+"\"\n"))
+		if (err == nil) != ok {
+			t.Errorf("relay %s: err %v, want ok %v", relay, err, ok)
+		}
+	}
+}
+
 // TestTheStokersPaneKeyIsGone: matchblox starts the stoker agent
 // itself, so [stoker] pane is no longer read. A config that still has it
 // loads, says so (status warns), and starts the default agent.

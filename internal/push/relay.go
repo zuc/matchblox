@@ -67,7 +67,10 @@ func NewHTTPRelay(base string, timeout time.Duration) Relay {
 	if timeout <= 0 {
 		timeout = DefaultTimeout
 	}
-	return &httpRelay{url: strings.TrimRight(base, "/") + "/push/send", c: &http.Client{Timeout: timeout}}
+	// A redirect is answered as the relay's status: following it would post
+	// the token and grant to wherever the relay points.
+	c := &http.Client{Timeout: timeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return &httpRelay{url: strings.TrimRight(base, "/") + "/push/send", c: c}
 }
 
 func (r *httpRelay) Send(ctx context.Context, e Event) error {

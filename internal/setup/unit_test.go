@@ -40,7 +40,9 @@ func TestTheKeepRunningDoorWritesAPlistOnMacOS(t *testing.T) {
 		"<string>com.blox.matchblox</string>",
 		"<key>ProgramArguments</key>\n\t<array>\n\t\t<string>" + exe + "</string>\n\t\t<string>serve</string>\n\t</array>",
 		"<key>RunAtLoad</key>\n\t<true/>",
-		"<key>KeepAlive</key>\n\t<true/>",
+		// Exit 0 is "the service already runs": only a nonzero exit (the binary
+		// was replaced, or the socket removed) is started again.
+		"<key>KeepAlive</key>\n\t<dict>\n\t\t<key>SuccessfulExit</key>\n\t\t<false/>\n\t</dict>",
 		"<key>StandardErrorPath</key>\n\t<string>" + filepath.Join(e.StateDir, "serve.log") + "</string>",
 	} {
 		if !strings.Contains(string(b), want) {
@@ -66,7 +68,7 @@ func TestTheKeepRunningDoorWritesAUnitOnLinux(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(unit)
-	for _, want := range []string{"ExecStart=" + exe + " serve\n", "Restart=on-failure\n", "WantedBy=default.target\n"} {
+	for _, want := range []string{"ExecStart=" + exe + " serve\n", "Restart=on-failure\n", "RestartSec=5\n", "WantedBy=default.target\n"} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("unit lacks %q:\n%s", want, b)
 		}

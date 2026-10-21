@@ -86,6 +86,9 @@ func main() {
 	}
 	if err := run(os.Args[1:]); err != nil {
 		pprof.StopCPUProfile()
+		if errors.Is(err, errRestart) {
+			os.Exit(exitRestart)
+		}
 		if errors.Is(err, errShown) {
 			os.Exit(1)
 		}
@@ -580,8 +583,16 @@ func invokedPath(arg0 string) string {
 	return abs
 }
 
+// errRestart: serve stopped for a new one, and said why. main exits with
+// exitRestart (EX_TEMPFAIL), and the user unit starts serve again only after
+// a nonzero exit; exit 0 is a signal or "the service already runs".
+var errRestart = errors.New("serve: stopped for a new one")
+
+const exitRestart = 75
+
 // serve runs the service on the socket until a signal, or until the binary
-// on disk is replaced (the next console starts the new one).
+// on disk is replaced or the socket removed (the user unit or the next
+// console starts the new one).
 func serve(path string, s *service.Service) error {
 	if s.Push != nil {
 		defer s.Push.Close()
@@ -597,7 +608,11 @@ func serve(path string, s *service.Service) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	err = s.Serve(ctx, l)
-	if errors.Is(err, service.ErrReplaced) || errors.Is(err, service.ErrSocketGone) || errors.Is(err, context.Canceled) {
+	switch {
+	case errors.Is(err, service.ErrReplaced) || errors.Is(err, service.ErrSocketGone):
+		fmt.Fprintln(os.Stderr, "matchblox: stopping,", strings.TrimPrefix(err.Error(), "service: "))
+		return errRestart
+	case errors.Is(err, context.Canceled):
 		return nil
 	}
 	return err

@@ -54,6 +54,7 @@ func wirePush(s *service.Service, cfg config.Push, home, dir, hostKeyPath string
 	p, err := pushSender(cfg, home, dir, hostKeyPath, n)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "matchblox: push is off:", err)
+		s.PushOff = "push: " + err.Error()
 		return
 	}
 	s.Push = p

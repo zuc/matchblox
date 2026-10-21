@@ -39,6 +39,15 @@ All notable changes to matchblox are in this file. The format follows
 
 - **Build the app again with this release.** An older app cannot read the
   v2 link and says "This code is damaged…". The new app reads v1 and v2.
+- **The app needs iOS 18.** It needed 17.2. The island's channel needs
+  iOS 18.
+- **A phone paired before this release gets an id.** At start the service
+  gives each old phone line in `~/.ssh/authorized_keys` an id, with a
+  backup, so the phone can register for the buzz without pairing again.
+  `serve.log` says how many lines it changed.
+- **`matchblox devices` shows the push of each phone.** A phone's row says
+  `buzz on` or `buzz off`, and `island yes` or `island no`.
+- **`[push] relay` names the relay.** It is `https://matchblox.sh`.
 
 ## [0.12.0] - 2026-10-21
 

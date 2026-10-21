@@ -28,6 +28,9 @@ import (
 func TestMain(m *testing.M) {
 	if args := os.Getenv("MATCHBLOX_TEST_ARGS"); args != "" {
 		if err := run(strings.Split(args, "\x1f")); err != nil {
+			if errors.Is(err, errRestart) {
+				os.Exit(exitRestart)
+			}
 			if !errors.Is(err, errShown) {
 				fmt.Fprintln(os.Stderr, "matchblox:", err) // as main says it
 			}
@@ -122,6 +125,60 @@ func TestEnsureServiceGivesUpWithTheFix(t *testing.T) {
 	if d := time.Since(start); d > 3*time.Second {
 		t.Fatalf("gave up after %v, want about 2 s", d)
 	}
+}
+
+// The user unit starts serve again only after a nonzero exit: a replaced
+// binary or a removed socket says so, a second serve exits 0.
+func TestServeAsksForARestart(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		after func(exe, sock string) error
+	}{
+		{"replaced", func(exe, _ string) error { return os.WriteFile(exe, []byte("v2, longer"), 0o600) }},
+		{"socket gone", func(_, sock string) error { return os.Remove(sock) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := isolate(t)
+			exe := filepath.Join(t.TempDir(), "matchblox")
+			if err := os.WriteFile(exe, []byte("v1"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			s := newService(config.Default(), fixtures(t))
+			s.Exe, s.ExeEvery = exe, 10*time.Millisecond
+			done := make(chan error, 1)
+			go func() { done <- serve(path, s) }()
+			deadline := time.Now().Add(2 * time.Second)
+			for {
+				c, err := transport.Dial(path, 100*time.Millisecond)
+				if err == nil {
+					c.Close()
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatal(err)
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			if err := tc.after(exe, path); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case err := <-done:
+				if !errors.Is(err, errRestart) {
+					t.Fatalf("serve returned %v, want errRestart", err)
+				}
+			case <-time.After(2 * time.Second):
+				t.Fatal("serve kept running")
+			}
+		})
+	}
+	t.Run("already runs", func(t *testing.T) {
+		path := isolate(t)
+		serveInProcess(t, path)
+		if err := serve(path, newService(config.Default(), fixtures(t))); err != nil {
+			t.Fatalf("serve returned %v, want nil", err)
+		}
+	})
 }
 
 func serveInProcess(t *testing.T, path string) {

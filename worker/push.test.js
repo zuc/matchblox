@@ -1,8 +1,10 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { apnsRequest, checkGrant, grantFor, handlePush, resetTokenCache } from "./push.js";
+import { apnsRequest, attestGrantFor, checkGrant, grantFor, handlePush, resetTokenCache } from "./push.js";
 import worker from "./index.js";
-import { fakeEnv, fakeFetch, fakeLimiter, post, BUNDLE, TEAM } from "./testkit.js";
+import {
+  b64, ecKeys, fakeEnv, fakeFetch, fakeLimiter, makeAssertion, post, rawPublic, sha256, BUNDLE, TEAM,
+} from "./testkit.js";
 
 // Apple's hosts, paths and headers, named once here as the fixtures expect
 // them (checked against developer.apple.com, see push.js).
@@ -186,6 +188,42 @@ test("the rate rule: /push/grant and /push/channel are limited per IP", async ()
     assert.notEqual((await call("192.0.2.2")).status, 429);
     assert.deepEqual(rl.keys, ["ip:192.0.2.1", "ip:192.0.2.1", "ip:192.0.2.2"]);
   }
+});
+
+test("a kind named like an Object property is refused as a kind, not by accident", async () => {
+  const { env } = await fakeEnv();
+  const fetch = fakeFetch();
+  // A send's kind is lower case letters, so only "constructor" gets past
+  // the grant.
+  const res = await handlePush(post("/push/send", await event(env, "constructor", DEVICE)), env, { fetch });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "bad kind or target" });
+  for (const kind of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+    const g = await handlePush(post("/push/grant", { client_data: { items: [{ kind, value: DEVICE }] } }), env, { fetch });
+    assert.equal(g.status, 400);
+    assert.deepEqual(await g.json(), { error: "bad item" });
+  }
+  assert.equal(fetch.calls.length, 0);
+});
+
+test("the rate rule: one attested key is one budget, however its key_id is spelled", async () => {
+  const { env } = await fakeEnv();
+  env.RL_CHANNEL = fakeLimiter(1);
+  const k = await ecKeys("P-256");
+  const raw = await rawPublic(k.publicKey);
+  const keyId = await sha256(raw);
+  const attest_grant = await attestGrantFor(env.GRANT_SECRET, raw);
+  const cd = JSON.stringify({ items: [], time: Math.floor(Date.now() / 1000) });
+  const assertion = await makeAssertion({ priv: k.privateKey, appId: `${TEAM}.${BUNDLE}`, clientData: cd });
+  const fetch = fakeFetch(() => new Response(null, { status: 201, headers: { "apns-channel-id": CHANNEL } }));
+  const id = b64(keyId);
+  for (const [i, spelled] of [id, ` ${id.slice(0, 20)}\n${id.slice(20)}`].entries()) {
+    const res = await handlePush(post("/push/channel", { assertion: b64(assertion), attest_grant, key_id: spelled, client_data: cd },
+      { "cf-connecting-ip": `192.0.2.${i + 1}` }), env, { fetch });
+    assert.equal(res.status, i === 0 ? 200 : 429);
+  }
+  assert.ok(env.RL_CHANNEL.keys.includes(`key:${Buffer.from(keyId).toString("hex")}`));
+  assert.equal(fetch.calls.length, 1);
 });
 
 test("a rate binding that fails limits nothing", async () => {

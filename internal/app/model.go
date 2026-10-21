@@ -671,8 +671,8 @@ const focusGone = "That session ended."
 // takeFocus opens the session a tap on the island or a buzz asked for, once
 // for each focus the service sends, on Sessions: its answer peek when it
 // waits, else its pane on the phone's own tmux client. A form, sheet, pair
-// page or take-over that is open keeps the keys: what the person types there
-// is not thrown away.
+// page, take-over or a peek with text typed on another session keeps the
+// keys: what the person types there is not thrown away.
 func (m Model) takeFocus(f *proto.Focus) (Model, tea.Cmd) {
 	if f == nil || f.At.Equal(m.focusAt) {
 		return m, nil
@@ -686,10 +686,12 @@ func (m Model) takeFocus(f *proto.Focus) (Model, tea.Cmd) {
 			break
 		}
 	}
-	busy := m.pair.owns() || m.sheet != nil || m.form != nil || m.held != nil
+	typing := m.peek != nil && m.peek.text != "" && (!found || m.peek.pane != s.Pane)
+	busy := m.pair.owns() || m.sheet != nil || m.form != nil || m.held != nil || typing
 	if f.Gone || !found {
 		if !busy {
 			m.setTab(tabSessions)
+			m.pending = nil
 		}
 		m.flash = focusGone
 		return m, nil
@@ -704,8 +706,9 @@ func (m Model) takeFocus(f *proto.Focus) (Model, tea.Cmd) {
 		return m, nil // outside tmux: no pane to open
 	}
 	if _, waits := m.waitOf(s); waits {
-		m.openPeek(s.Pane) // the home console is shared: the peek shows on the phone too
-		return m, nil
+		// The home console is shared: the peek shows on the phone too, and an
+		// Enter on its way at the desk must not answer it.
+		return m.peekTo(s.Pane), nil
 	}
 	// Only the phone's client moves, and only on this console's own tmux: a
 	// console of another host (over ssh) or outside tmux never moves a

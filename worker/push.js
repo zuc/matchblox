@@ -76,6 +76,7 @@ const MAX_ITEMS = 8;
 
 // Each kind, its push type, and the shape of its target.
 const KINDS = {
+  __proto__: null,
   device: { pushType: "alert", target: /^[0-9a-fA-F]{16,400}$/ },
   start: { pushType: "liveactivity", target: /^[0-9a-fA-F]{16,400}$/ },
   channel: { pushType: "liveactivity", target: /^[A-Za-z0-9+/]{4,200}={0,2}$/ },
@@ -252,7 +253,7 @@ async function send(request, env, deps) {
 }
 
 // authenticate checks the App Attest part of a grant or channel call and
-// answers the attested key, its attest grant and the client data.
+// answers the attested key's id (hex), its attest grant and the client data.
 async function authenticate(body, env, deps) {
   const raw = typeof body.client_data === "string" ? body.client_data : JSON.stringify(body.client_data ?? null);
   let cd;
@@ -275,7 +276,7 @@ async function authenticate(body, env, deps) {
     if (typeof body.attestation === "string") {
       const { publicKey } = await verifyAttestation({ attestation: fromBase64(body.attestation), keyId, clientDataHash,
         appId, env: attestEnv, root: deps.root, now: deps.now() });
-      return { cd, attestGrant: await attestGrantFor(env.GRANT_SECRET, publicKey) };
+      return { cd, keyId: hex(keyId), attestGrant: await attestGrantFor(env.GRANT_SECRET, publicKey) };
     }
     if (typeof body.assertion === "string") {
       const publicKey = await openAttestGrant(env.GRANT_SECRET, body.attest_grant);
@@ -283,7 +284,7 @@ async function authenticate(body, env, deps) {
       const id = await sha256(publicKey);
       if (id.length !== keyId.length || !id.every((x, i) => x === keyId[i])) refuse(403, "key_id is not the attested key");
       await verifyAssertion({ assertion: fromBase64(body.assertion), publicKey, clientDataHash, appId, env: attestEnv });
-      return { cd, attestGrant: body.attest_grant };
+      return { cd, keyId: hex(keyId), attestGrant: body.attest_grant };
     }
   } catch (err) {
     if (err instanceof AttestError) refuse(403, "app attest: " + err.message);
@@ -321,10 +322,11 @@ function safeItems(s) {
 async function channel(request, env, deps) {
   if (await limited(env.RL_CHANNEL, `ip:${clientIP(request)}`)) refuse(429, "rate limited");
   const body = await readJSON(request);
-  await authenticate(body, env, deps);
+  const { keyId } = await authenticate(body, env, deps);
   // Per attested key too, after the check, so a replayed assertion or one
-  // phone on many addresses still makes few channels.
-  if (await limited(env.RL_CHANNEL, `key:${body.key_id}`)) refuse(429, "rate limited");
+  // phone on many addresses still makes few channels. The decoded id, not
+  // body.key_id: atob reads one key from many spellings.
+  if (await limited(env.RL_CHANNEL, `key:${keyId}`)) refuse(429, "rate limited");
   const bundle = env.APNS_BUNDLE_ID;
   const token = await apnsToken(env, deps.now);
   let res;

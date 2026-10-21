@@ -76,6 +76,10 @@ func registerMain(home string, in io.Reader, out io.Writer, id string, names fun
 	if req.DeviceToken == "" {
 		return refuse("no device token")
 	}
+	// The notify key is an X25519 public key; none is a phone without buzz.
+	if len(req.NotifyKey) != 0 && len(req.NotifyKey) != 32 {
+		return refuse("bad notify key")
+	}
 	err := setup.Register(home, push.Registration{Device: id, RegisterRequest: req, At: time.Now()})
 	switch {
 	case errors.Is(err, setup.ErrUnknownDevice):

@@ -27,9 +27,10 @@ const (
 	// restartAfter is when an activity is started again: 30 minutes before
 	// the 8 hours iOS keeps one.
 	restartAfter = 8*time.Hour - 30*time.Minute
-	// startRetry is how long a start that failed for another reason than a
-	// dead token waits before it is tried again.
-	startRetry = time.Minute
+	// retryAfter is how long a start that failed for another reason than a
+	// dead token, or a channel update that failed, waits before the same is
+	// tried again.
+	retryAfter = time.Minute
 )
 
 // RenewStatus is the status when the phone's push-to-start token is dead.
@@ -75,6 +76,9 @@ type Sender struct {
 	started map[string]time.Time // push-to-start token -> last good start, kept in starts.json
 	tried   map[string]time.Time // push-to-start token -> last failed start
 	dead    map[string]bool      // push-to-start tokens the relay answered 410
+	follows map[string]string    // device -> its push-to-start token at the last doc, "" for none
+	failed  *ContentState        // the state whose channel update failed last, until one goes
+	failAt  time.Time
 }
 
 // NewSender starts the sender's one worker; Close stops it. dir is the state
@@ -84,7 +88,7 @@ func NewSender(r Relay, p Phones, n *Numbers, dir, hostFP string, now func() tim
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Sender{relay: r, phones: p, n: n, dir: dir, hostFP: hostFP, now: now,
 		in: make(chan state.Doc, 1), ctx: ctx, cancel: cancel, done: make(chan struct{}),
-		started: loadStarts(dir), tried: map[string]time.Time{}, dead: map[string]bool{}}
+		started: loadStarts(dir), tried: map[string]time.Time{}, dead: map[string]bool{}, follows: map[string]string{}}
 	go s.run()
 	return s
 }
@@ -183,6 +187,7 @@ func (s *Sender) handle(doc state.Doc) {
 	if len(regs) == 0 {
 		s.clear() // nothing is sent: an old failure says nothing now
 	}
+	s.forgetEnded(regs, now)
 	s.buzz(doc, regs, now)
 	s.island(doc, regs, now)
 	renew := false
@@ -305,6 +310,39 @@ type startAlert struct {
 	Body  string `json:"body"`
 }
 
+// forgetEnded forgets the starts of a phone whose island came, went or
+// changed its token since the last doc: the app ends this host's activity when
+// Follow moves to another host, so following back needs a new start.
+func (s *Sender) forgetEnded(regs []Registration, now time.Time) {
+	follows := make(map[string]string, len(regs))
+	forgot := false
+	for _, r := range regs {
+		tok := ""
+		if r.Island != nil {
+			tok = r.Island.StartToken
+		}
+		follows[r.Device] = tok
+		prev, seen := s.follows[r.Device]
+		if !seen || prev == tok {
+			continue
+		}
+		for _, t := range []string{prev, tok} {
+			if t == "" {
+				continue
+			}
+			if _, ok := s.started[startKey(t)]; ok {
+				delete(s.started, startKey(t))
+				forgot = true
+			}
+			delete(s.tried, t)
+		}
+	}
+	s.follows = follows
+	if forgot {
+		s.saveStarts(now)
+	}
+}
+
 // island starts the activity of each following phone that has none, or whose
 // activity nears its 8 hours, and sends the updates that are due to the
 // channel.
@@ -323,11 +361,15 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 		return // a number that could not be written down: Status says so
 	}
 	prio, due := s.due(cs, now)
+	if due && s.failed != nil && now.Sub(s.failAt) < retryAfter && !changed(s.failed, cs) {
+		due = false // the same state failed within the minute: no retry each doc
+	}
 	// The baseline (last, pctAt, usageAt) moves only when this state reached
 	// every following phone's activity: by a channel update (it goes to each
 	// channel when due), or by a good start of each. A failed start, or the
-	// start of one phone, must not swallow a change another phone waits for.
-	updated, startedAll := false, true
+	// start of one phone, must not swallow a change another phone waits for;
+	// nor must a failed channel update.
+	updated, failed, startedAll := false, false, true
 	channels := map[string]bool{}
 	for _, r := range follow {
 		tok, ch := r.Island.StartToken, r.Island.Channel
@@ -358,13 +400,21 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 			continue
 		}
 		channels[ch] = true
-		updated = true
 		pl, _ := json.Marshal(liveBody{APS: liveAPS{Timestamp: now.Unix(), Event: "update", State: cs, StaleDate: staleDate(cs, now)}})
-		s.send(r, Event{Target: ch, Kind: "channel", PushType: "liveactivity", Priority: prio, Payload: pl})
+		if s.send(r, Event{Target: ch, Kind: "channel", PushType: "liveactivity", Priority: prio, Payload: pl}) != nil {
+			failed = true
+		} else {
+			updated = true
+		}
+	}
+	if failed {
+		s.failed, s.failAt = &cs, now
+		return
 	}
 	if !updated && !startedAll {
 		return
 	}
+	s.failed = nil
 	switch {
 	case s.last == nil:
 		s.pctAt, s.usageAt = now, now
@@ -399,7 +449,7 @@ func (s *Sender) needStart(tok string, now time.Time) bool {
 	if tok == "" || s.dead[tok] {
 		return false
 	}
-	if at, ok := s.tried[tok]; ok && now.Sub(at) < startRetry {
+	if at, ok := s.tried[tok]; ok && now.Sub(at) < retryAfter {
 		return false
 	}
 	at, ok := s.started[startKey(tok)]
@@ -414,8 +464,7 @@ func (s *Sender) due(cs ContentState, now time.Time) (int, bool) {
 	if l == nil {
 		return 10, true
 	}
-	if (l.Top == nil) != (cs.Top == nil) || cs.Top != nil && (l.Top.N != cs.Top.N || l.Top.State != cs.Top.State) ||
-		cs.Wait > l.Wait || cs.WaitAt.After(l.WaitAt) || cs.Stoker != l.Stoker {
+	if changed(l, cs) {
 		return 10, true
 	}
 	if pctOf(l) != pctOf(&cs) && now.Sub(s.pctAt) >= progressEvery {
@@ -425,6 +474,13 @@ func (s *Sender) due(cs ContentState, now time.Time) (int, bool) {
 		return 5, true
 	}
 	return 0, false
+}
+
+// changed says cs goes at once after l: the top session or its state, a wait
+// more, or the stoker.
+func changed(l *ContentState, cs ContentState) bool {
+	return (l.Top == nil) != (cs.Top == nil) || cs.Top != nil && (l.Top.N != cs.Top.N || l.Top.State != cs.Top.State) ||
+		cs.Wait > l.Wait || cs.WaitAt.After(l.WaitAt) || cs.Stoker != l.Stoker
 }
 
 func pctOf(cs *ContentState) int {

@@ -60,6 +60,8 @@ func unitFor(e Env) (u unit, ok bool) {
 
 // The unit sets PATH to the one of the process that opens the door: launchd
 // and systemd start with a minimal one, and serve runs tmux and claude.
+// Both start serve again only after a nonzero exit (the binary was
+// replaced, or the socket removed): exit 0 means the service already runs.
 func plist(exe, log, path string) string {
 	esc := func(s string) string {
 		var b bytes.Buffer
@@ -84,7 +86,10 @@ func plist(exe, log, path string) string {
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
-	<true/>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
 ` + env + `	<key>StandardErrorPath</key>
 	<string>` + esc(log) + `</string>
 </dict>
@@ -108,6 +113,7 @@ Description=matchblox serve: the phone buzzes with no console open
 [Service]
 ExecStart=` + exe + ` serve
 Restart=on-failure
+RestartSec=5
 ` + env + `
 [Install]
 WantedBy=default.target
