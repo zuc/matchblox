@@ -30,6 +30,10 @@ func TestUnguardedNamesEveryGoTheOrderDoesNotGive(t *testing.T) {
 	of := func(s string) string { return agent[s] }
 	all := []string{"merge", "release", "deploy"}
 	got := Unguarded(plan, nil, of)
+	cursor := Unguarded([]PlanStep{{1, "app", "x"}}, nil, func(string) string { return "cursor-agent" })
+	if len(cursor) != 1 || cursor[0].Session != "app" {
+		t.Errorf("a Cursor session: %+v, want it unguarded", cursor)
+	}
 	if len(got) != 2 || got[0].Session != "api" || got[1].Session != "docs" || !slices.Equal(got[0].Goes, all) {
 		t.Fatalf("no grant: %+v", got)
 	}
@@ -56,6 +60,11 @@ func TestUnguardedNamesEveryGoTheOrderDoesNotGive(t *testing.T) {
 func TestBriefNamesTheOrderTheWaysAndTheRun(t *testing.T) {
 	o := Order{ID: "o-1", Words: "merge them on green", At: time.Now(), State: OrderRunning, Grants: []string{"merge"}}
 	b := Brief(o, "/home/u/.config/matchblox/ways.md", Hands, Board{})
+	for _, want := range []string{"--agent claude|codex|opencode|cursor-agent", "Codex, OpenCode and Cursor sessions have no guard"} {
+		if !strings.Contains(b, want) {
+			t.Errorf("the brief does not say %q", want)
+		}
+	}
 	for _, want := range []string{
 		"You are the stoker", "/home/u/.config/matchblox/ways.md", "Run o-1 starts now: nobody approves a plan.",
 		"> merge them on green", "Keep your plan current with `matchblox stoker plan`",

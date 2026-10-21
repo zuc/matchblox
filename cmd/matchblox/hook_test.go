@@ -364,3 +364,28 @@ func TestHookStaysUnder50ms(t *testing.T) {
 		}
 	}
 }
+
+// TestCursorHookPrintsNothingAndSpools: what Cursor's stop hook prints it
+// can take as a follow-up and start a turn on, so the hook prints nothing.
+func TestCursorHookPrintsNothingAndSpools(t *testing.T) {
+	sock := isolate(t)
+	spool := filepath.Join(t.TempDir(), "spool.jsonl")
+	b, err := os.ReadFile("../../testdata/hooks/cursor-stop-completed.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := hookCursor(bytes.NewReader(b), &out, sock, spool); err != nil {
+		t.Fatal(err)
+	}
+	if out.Len() != 0 {
+		t.Errorf("the hook printed %q", out.String())
+	}
+	line, err := os.ReadFile(spool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(line, []byte(`"name":"Stop"`)) || !bytes.Contains(line, []byte(`"agent":"cursor-agent"`)) {
+		t.Errorf("spool %s, want a Stop of cursor-agent", line)
+	}
+}

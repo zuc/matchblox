@@ -25,7 +25,7 @@ func boxLink(t *testing.T) string {
 		t.Fatal(err)
 	}
 	p := f.Payload
-	p.Host, p.User, p.Name = "martin-lexroom-macbook.tail1a2b3c.ts.net", "martinyankov", "Martin-Lexroom-Macbook"
+	p.Host, p.User, p.Name = "studio-workstation-mbp.tail1a2b3c.ts.net", "buildersmith", "Studio-Workstation-Mbp"
 	return p.URL()
 }
 
@@ -56,7 +56,7 @@ func TestPairBoxEveryCellIsAToken(t *testing.T) {
 	for _, dark := range []bool{true, false} {
 		for _, ph := range boxPhases {
 			for _, at := range []time.Duration{0, 100 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second} {
-				s := boxState{phase: ph, since: at, link: link, name: "Martin's iPad"}
+				s := boxState{phase: ph, since: at, link: link, name: "Morgan's iPad"}
 				lines, _ := pairBox(s, dark, false, 100, 40)
 				if _, err := replay.Parse(strings.Join(lines, "\n"), Tokens(dark)); err != nil {
 					t.Fatalf("dark=%v phase %d at %v: %v", dark, ph, at, err)
@@ -226,10 +226,10 @@ func TestPairBoxFlameWaitsForTheMatchToStand(t *testing.T) {
 func TestPairBoxOpenedLabelNamesTheDevice(t *testing.T) {
 	link := boxLink(t)
 	for _, dark := range []bool{true, false} {
-		s := boxState{phase: boxOpen, since: 10 * time.Second, link: link, name: "Martin's iPad"}
+		s := boxState{phase: boxOpen, since: 10 * time.Second, link: link, name: "Morgan's iPad"}
 		lines, _ := pairBox(s, dark, false, 100, 40)
 		out := ansi.Strip(strings.Join(lines, "\n"))
-		if !strings.Contains(out, "Martin's iPad") || !strings.Contains(out, "●") || !strings.Contains(out, "┃") {
+		if !strings.Contains(out, "Morgan's iPad") || !strings.Contains(out, "●") || !strings.Contains(out, "┃") {
 			t.Fatalf("dark=%v: the opened box has the name and the standing match:\n%s", dark, out)
 		}
 		s.phase = boxExpired

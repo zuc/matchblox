@@ -229,7 +229,7 @@ func TestQRSize(t *testing.T) {
 
 func TestQRSizeV2(t *testing.T) {
 	p := load2(t).Payload
-	p.Host, p.User, p.Name = "martin-lexroom-macbook.tail1a2b3c.ts.net", "martinyankov", "Martin-Lexroom-Macbook"
+	p.Host, p.User, p.Name = "studio-workstation-mbp.tail1a2b3c.ts.net", "buildersmith", "Studio-Workstation-Mbp"
 	lines, err := QR(p.URL())
 	if err != nil {
 		t.Fatal(err)

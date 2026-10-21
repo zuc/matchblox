@@ -48,7 +48,7 @@ func (s *Service) agentMissing() string {
 	}
 	cmd := s.agentArgv()[0]
 	if _, err := look(cmd); err != nil {
-		return fmt.Sprintf("%s is not on PATH: install it, or name the stoker's agent in config.toml, [stoker] agent = \"codex\" (or opencode)", cmd)
+		return fmt.Sprintf("%s is not on PATH: install it, or name the stoker's agent in config.toml, [stoker] agent = \"codex\" (or opencode, cursor-agent)", cmd)
 	}
 	return ""
 }

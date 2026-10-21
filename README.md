@@ -25,7 +25,7 @@ which agent waits for you, what loads the machine, the state of every git
 checkout, and the one safe action that resolves each thing. It works on the
 host, over SSH, and from a phone.
 
-Works with Claude Code, Codex, OpenCode, and any agent in tmux.
+Works with Claude Code, Codex, OpenCode, Cursor, and any agent in tmux.
 
 **Docs: [docs.matchblox.com](https://docs.matchblox.com)**
 

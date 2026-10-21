@@ -105,7 +105,7 @@ func CheckGrant(g string) error {
 }
 
 // Unguarded are the plan's sessions that run an agent with no merge guard
-// (agentOf names it: codex, opencode), each with the goes the grants do not
+// (agentOf names it: codex, opencode, cursor-agent), each with the goes the grants do not
 // give in full: one merge (merge:#n) still leaves every other merge open.
 func Unguarded(plan []PlanStep, grants []string, agentOf func(session string) string) []Unguard {
 	var missing []string
@@ -121,7 +121,7 @@ func Unguarded(plan []PlanStep, grants []string, agentOf func(session string) st
 	var out []Unguard
 	for _, st := range plan {
 		a := agentOf(st.Session)
-		if (a == "codex" || a == "opencode") && !slices.ContainsFunc(out, func(u Unguard) bool { return u.Session == st.Session }) {
+		if (a == "codex" || a == "opencode" || a == "cursor-agent") && !slices.ContainsFunc(out, func(u Unguard) bool { return u.Session == st.Session }) {
 			out = append(out, Unguard{Session: st.Session, Goes: missing})
 		}
 	}

@@ -3,3 +3,6 @@
 .wrangler/
 site/
 .venv/
+
+# Claude Code / Cursor agent worktrees (local only; settings stay tracked)
+.claude/worktrees/

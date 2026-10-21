@@ -351,6 +351,7 @@ func TestDoneDoorFolds(t *testing.T) {
 	e := env(t)
 	e.LookPath = func(name string) (string, error) { return "/usr/bin/" + name, nil }
 	open(t, e, doors.Hooks)
+	open(t, e, doors.CursorHooks)
 	open(t, e, doors.Limits)
 	open(t, e, doors.SafetyNet)
 	open(t, e, doors.WayBack)

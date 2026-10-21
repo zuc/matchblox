@@ -40,6 +40,18 @@ All notable changes to matchblox are in this file. The format follows
 - **Build the app again with this release.** An older app cannot read the
   v2 link and says "This code is damaged…". The new app reads v1 and v2.
 
+## [0.12.0] - 2026-10-21
+
+### Added
+
+- **Cursor's CLI is an agent like the others.** Sessions shows it, started
+  as `agent` or `cursor-agent`. The setup step "Add the Cursor hooks" puts
+  matchblox in `~/.cursor/hooks.json`, so a finished turn waits for you as
+  `done` and a reply that asks as `asks`; its approval menu is read from
+  its pane. `matchblox new --agent cursor-agent` and `[stoker] agent =
+  "agent"` start it. It shows no context use or account yet, and no merge
+  guard watches it.
+
 ## [0.11.0] - 2026-10-21
 
 ### Added
@@ -412,7 +424,8 @@ the host, over SSH and from a phone.
   version, and `matchblox version` names it.
 - **Docs** at [docs.matchblox.com](https://docs.matchblox.com).
 
-[Unreleased]: https://github.com/blox-eng/matchblox/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/blox-eng/matchblox/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/blox-eng/matchblox/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/blox-eng/matchblox/compare/v0.10.3...v0.11.0
 [0.10.3]: https://github.com/blox-eng/matchblox/compare/v0.10.2...v0.10.3
 [0.10.2]: https://github.com/blox-eng/matchblox/compare/v0.10.1...v0.10.2

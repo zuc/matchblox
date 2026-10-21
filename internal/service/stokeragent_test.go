@@ -222,7 +222,7 @@ func TestAnAgentNotOnPathIsADoor(t *testing.T) {
 	s.StokerAgent = "codex"
 	s.LookPath = func(string) (string, error) { return "", errors.New("not found") }
 	res := s.act(t.Context(), proto.Act{Console: true, RecID: "stoker:start"})
-	want := `codex is not on PATH: install it, or name the stoker's agent in config.toml, [stoker] agent = "codex" (or opencode)`
+	want := `codex is not on PATH: install it, or name the stoker's agent in config.toml, [stoker] agent = "codex" (or opencode, cursor-agent)`
 	if res.Err != want || len(*ran) != 0 {
 		t.Fatalf("err %q ran %q", res.Err, *ran)
 	}

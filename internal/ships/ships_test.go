@@ -104,7 +104,8 @@ func TestOwnership(t *testing.T) {
 	} {
 		s := find(rep, n)
 		if s == nil {
-			t.Fatalf("#%d is not a ship: %+v", n, rep.Ships)
+			t.Errorf("#%d is not a ship: %+v", n, rep.Ships)
+			continue
 		}
 		if s.Session.Pane != want.pane || s.Evidence != want.evidence {
 			t.Errorf("#%d belongs to %s by %s, want %s by %s", n, s.Session.Pane, s.Evidence, want.pane, want.evidence)

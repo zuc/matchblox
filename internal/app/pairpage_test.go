@@ -438,9 +438,9 @@ func TestPairPageSurvivesResize(t *testing.T) {
 		t.Fatal(err)
 	}
 	m = poll(t, m)
-	next, _ := m.Update(tea.WindowSizeMsg{Width: 60, Height: 30})
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 40, Height: 20})
 	m = next.(Model)
-	// The line wraps in 60 columns.
+	// The line wraps in 40 columns. No v2 code fits 40 × 20, whatever the user name.
 	if !strings.Contains(strings.Join(strings.Fields(pageText(m)), " "), "Make this terminal 61 × 33 or larger to show the code, or press c to copy the link.") {
 		t.Fatalf("no make-larger line:\n%s", pageText(m))
 	}

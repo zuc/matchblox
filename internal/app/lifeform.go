@@ -58,7 +58,7 @@ func (m Model) openNew() (tea.Model, tea.Cmd) {
 		m.flash = "not sent, no connection"
 		return m, nil
 	case len(m.agents) == 0:
-		m.flash = "no agent to start here: install claude, codex or opencode"
+		m.flash = "no agent to start here: install claude, codex, opencode or cursor-agent"
 		return m, nil
 	}
 	f := &form{at: fieldWhere, whereAt: -1, agent: m.agents[0]}

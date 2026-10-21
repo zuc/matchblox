@@ -1,0 +1,6 @@
+# testdata/*/proc/*/cwd are fake /proc cwd symlinks. Ones that pointed at /
+# made Cursor's `rg --files --follow --no-config` walk the whole disk (so
+# .cursorignore alone cannot stop it — that rg ignores ignore files). Those
+# links now point at a dangling /matchblox-fixture-root; keep excluding the
+# tree from Agent @-mentions anyway.
+testdata/

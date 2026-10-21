@@ -304,7 +304,7 @@ The guard has limits:
   line you type straight into a pane in tmux is not seen, so the session
   stays marked as the stoker's until you send it something from the
   console.
-- Codex and OpenCode have no such hook. A session of those agents is
+- Codex, OpenCode and Cursor have no such hook. A session of those agents is
   unguarded. When the plan names one, the STOKER tab says so, with each
   go the run does not give (`! no merge guard watches api-gw: its merges,
   releases and deploys go unchecked`), and the brief tells the stoker
@@ -388,7 +388,7 @@ The guard has limits:
   that works or waits for you is refused (`api-gw works: the stoker kills
   only a session at rest`).
 - It starts sessions only in a run, only on your tmux server, and only
-  Claude Code, Codex or OpenCode.
+  Claude Code, Codex, OpenCode or Cursor.
 - It never answers a permission prompt: matchblox refuses a `send` to a
   session that waits at one, by its hooks or by the last sample of its
   pane (`a permission prompt is answered in its pane`).

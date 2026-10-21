@@ -3,6 +3,7 @@ package hooks
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -243,5 +244,19 @@ func TestScrubHidesTheValuesALineSets(t *testing.T) {
 	out, err := json.Marshal(ev)
 	if err != nil || bytes.Contains(out, []byte("abc123")) {
 		t.Fatalf("the raw line went out: %s %v", out, err)
+	}
+}
+
+// TestParseDropsACursorPayload: Cursor can run Claude Code's hooks too, with
+// its own payloads. Its own hook (ParseCursor) is the one source of its
+// events.
+func TestParseDropsACursorPayload(t *testing.T) {
+	f, err := os.Open(filepath.Join("..", "..", "testdata", "hooks", "cursor-stop-completed.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if _, err := Parse(f, "Stop", env(nil)); !errors.Is(err, ErrCursor) {
+		t.Errorf("err = %v, want ErrCursor", err)
 	}
 }

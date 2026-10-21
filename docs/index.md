@@ -19,7 +19,7 @@ Then, when you need them:
 - [The stoker](stoker.md): sessions that compact themselves while you sleep, and an agent that takes your orders.
 - [Your ways](ways.md): the standing rules and recipes the stoker follows.
 - [Ships](ships.md): the pull requests your sessions drive, from open to live.
-- [Agents](agents.md): Claude Code, Codex, OpenCode and any other agent.
+- [Agents](agents.md): Claude Code, Codex, OpenCode, Cursor and any other agent.
 - [Remote hosts](remote.md): agents on another machine.
 - [Config](config.md): thresholds and agents.
 - [Safety](safety.md): what matchblox does and does not do.

@@ -80,7 +80,7 @@
     - an empty host, user or name
     - port 0
     - a bad base64url
-  - `TestQRSizeV2`: for the payload with host `martin-lexroom-macbook.tail1a2b3c.ts.net`, user `martinyankov`, name `Martin-Lexroom-Macbook`, `len(lines) <= 29` and the width is `<= 57` runes.
+  - `TestQRSizeV2`: for the payload with host `studio-workstation-mbp.tail1a2b3c.ts.net`, user `buildersmith`, name `Studio-Workstation-Mbp`, `len(lines) <= 29` and the width is `<= 57` runes.
 - [ ] **Step 2:** Run `go test ./internal/pair/`. Expected: FAIL (undefined `load2`, v1 URL).
 - [ ] **Step 3: Implement**
   - Byte layout: `0x02`, port as 2 bytes big-endian, `sha256(hostkey)` 32 bytes, seed 32 bytes, then `host 0x00 user 0x00 name`.
@@ -373,7 +373,7 @@
   - The existing `TestPairCmd*` tests pass unchanged except for the v2 text.
 - [ ] **Step 2:** Run `go test ./cmd/matchblox/ -run PairCmd`. Expected: FAIL.
 - [ ] **Step 3:** Implement.
-- [ ] **Step 4:** Run `go test ./...`. Expected: PASS. Then by hand: `go build -o /tmp/mb ./cmd/matchblox && /tmp/mb pair --address Martin-Lexroom-Macbook.local` shows the page. `esc` prints `Stopped. The code no longer works.`
+- [ ] **Step 4:** Run `go test ./...`. Expected: PASS. Then by hand: `go build -o /tmp/mb ./cmd/matchblox && /tmp/mb pair --address Studio-Workstation-Mbp.local` shows the page. `esc` prints `Stopped. The code no longer works.`
 - [ ] **Step 5:** Commit `feat(pair): matchblox pair shows the pair page`.
 
 ### Task 11: MatchbloxKit reads v2 and finds a pasted link

@@ -30,6 +30,18 @@ tmux new -s web opencode
 ✦ busy         opencode   web:1.1   ███░░░░░░░  32%   ▣ API key
 ```
 
+**Cursor**
+
+```sh
+tmux new -s app agent
+```
+```
+╿ asks   1m    cursor-agent  app:1.1   —
+```
+
+Cursor's CLI counts whether you start it as `agent` or `cursor-agent`. The
+first run lists it in `agents` as `cursor-agent`.
+
 **Any other agent**, for example aider
 
 ```sh
@@ -92,7 +104,19 @@ other reads work from any pane. An install from before these hooks or
 rules shows the step again, with the entries it adds. Every other agent is read from its pane: busy
 while the pane changes, waiting when it is idle and its last lines ask.
 
-An approval menu (Codex, OpenCode) shows as `asks`. Answer it in its pane,
+Cursor tells its turns through its own hooks: the setup step "Add the
+Cursor hooks" adds `matchblox hook --cursor` to `~/.cursor/hooks.json`, for
+`sessionStart`, `sessionEnd`, `beforeSubmitPrompt`, `stop`,
+`afterAgentResponse` and `postToolUse`, and for nothing else: Cursor
+ignores the whole file, without a word, when one event in it is one it
+does not take. A turn that ends waits for you as `done`, or `asks` when its
+reply (from `afterAgentResponse`) ends on a question; one you stop with Esc
+does not. No Cursor hook fires when its approval menu
+(`Run this command?`) draws, so that wait is read from its pane. The hooks
+are global, so an `agent -p` you run counts only in a pane where Cursor
+runs.
+
+An approval menu (Codex, OpenCode, Cursor) shows as `asks`. Answer it in its pane,
 where `Enter` takes the selected choice.
 
 See [Limits](limits.md) for what is not measured yet.

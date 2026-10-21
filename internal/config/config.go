@@ -70,7 +70,7 @@ type Limits struct {
 type Stoker struct {
 	NightEnds string `toml:"night_ends"` // "07:00": n runs the stoker until then
 	// Agent is the command matchblox starts the stoker agent with, on its
-	// own tmux server: claude, codex or opencode.
+	// own tmux server: claude, codex, opencode or cursor-agent.
 	Agent string `toml:"agent"`
 	// PaneSet: the file still has the pane key of before matchblox started
 	// the agent itself. It is ignored, and status says so.

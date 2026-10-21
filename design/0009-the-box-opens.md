@@ -167,9 +167,9 @@ whole screen while it shows.
 | When | The host shows |
 |---|---|
 | The page opens | The box is shut, the label is the QR code, the countdown runs. |
-| The phone connects (`gate pair` starts) | **The knock** (§8): the box moves one cell left and back, twice, in 240 ms. The countdown line says `Martin's iPad is here…` (the name comes later; until the request is read, the line says `A device is here…`). |
+| The phone connects (`gate pair` starts) | **The knock** (§8): the box moves one cell left and back, twice, in 240 ms. The countdown line says `Morgan's iPad is here…` (the name comes later; until the request is read, the line says `A device is here…`). |
 | The device claims the code | **The opening** (§8): the label turns to plain paper with the device's name in `bg` ink. The drawer opens, the match comes out, strikes along the striker and stands beside the box. In a dark terminal it burns; in a light one it stays unlit (DESIGN.md §3). |
-| The opening ends | The door folds and the device shows in `DEVICES`. The line says `Paired Martin's iPad (SHA256:…). Not yours? x on it in DEVICES.` In the console, the page waits for beats 3 and 4 (§4.4). Standalone `matchblox pair` waits 1.2 s, leaves the alternate screen and prints today's `Paired …` line. |
+| The opening ends | The door folds and the device shows in `DEVICES`. The line says `Paired Morgan's iPad (SHA256:…). Not yours? x on it in DEVICES.` In the console, the page waits for beats 3 and 4 (§4.4). Standalone `matchblox pair` waits 1.2 s, leaves the alternate screen and prints today's `Paired …` line. |
 | The code expires | The label goes blank paper and the box stays shut. The line says `The code expired. Enter pairs again.` (console) or `The code expired. Run matchblox pair again.` (standalone). |
 | `esc` or Ctrl-C | The page closes and the code is removed at once. Standalone prints `Stopped. The code no longer works.` |
 | The phone took the code at the last moment | As today: the claim wins and the opening plays. |
@@ -320,7 +320,7 @@ each step at once. Haptics still play with Reduce Motion.
 - So two devices can both be `iPad`. `gate pair` makes the name unique on
   the host when it claims the code: `iPad`, then `iPad 2`, `iPad 3`. So
   `matchblox devices rm iPad 2` works, and the `DEVICES` rows differ by name.
-- The examples in this file say `Martin's iPad`. With today's iOS, the host
+- The examples in this file say `Morgan's iPad`. With today's iOS, the host
   shows `iPad`.
 - The address is the one in the link.
 
@@ -391,7 +391,7 @@ device, the device shows the host.
   - beats 3 and 4: a console start and a first act from the new device's
     key move the page, another key's don't, and an old phone line still
     opens the console
-- On the iPad (`Martin's iPad`) with this Mac:
+- On the iPad (`Morgan's iPad`) with this Mac:
   - The door opens the page. A scan pairs with no form, and both screens
     strike within about 0.2 s of each other.
   - Paste the link pairs the same way.

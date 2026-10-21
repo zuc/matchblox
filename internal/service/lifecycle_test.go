@@ -263,14 +263,14 @@ func TestNewRefuses(t *testing.T) {
 	s, ran := lifeTest(t)
 	dir := t.TempDir()
 	for why, n := range map[string]proto.NewSession{
-		"a tmux session is named dev already: choose another name":          {Where: dir, Agent: "claude", Name: "dev"},
-		"opencode is not installed here":                                    {Where: dir, Agent: "opencode", Name: "x"},
-		"aider is not an agent matchblox starts: claude, codex or opencode": {Where: dir, Agent: "aider", Name: "x"},
-		"no directory " + dir + "/nope":                                     {Where: dir + "/nope", Agent: "claude", Name: "x"},
-		"a new session starts in a full path":                               {Where: "rel/dir", Agent: "claude", Name: "x"},
-		"a new worktree needs a git repository: " + dir + " is none":        {Where: dir, Branch: "b", Agent: "claude"},
-		"a first message does not start with -":                             {Where: dir, Agent: "claude", Name: "x", First: "--dangerously-skip-permissions"},
-		"the first message must be one line, without control keys":          {Where: dir, Agent: "claude", Name: "x", First: "a\nb"},
+		"a tmux session is named dev already: choose another name":                        {Where: dir, Agent: "claude", Name: "dev"},
+		"opencode is not installed here":                                                  {Where: dir, Agent: "opencode", Name: "x"},
+		"aider is not an agent matchblox starts: claude, codex, opencode or cursor-agent": {Where: dir, Agent: "aider", Name: "x"},
+		"no directory " + dir + "/nope":                                                   {Where: dir + "/nope", Agent: "claude", Name: "x"},
+		"a new session starts in a full path":                                             {Where: "rel/dir", Agent: "claude", Name: "x"},
+		"a new worktree needs a git repository: " + dir + " is none":                      {Where: dir, Branch: "b", Agent: "claude"},
+		"a first message does not start with -":                                           {Where: dir, Agent: "claude", Name: "x", First: "--dangerously-skip-permissions"},
+		"the first message must be one line, without control keys":                        {Where: dir, Agent: "claude", Name: "x", First: "a\nb"},
 	} {
 		if res := s.act(t.Context(), newAct(t, n)); res.Err != why {
 			t.Errorf("want %q, got %q", why, res.Err)
@@ -434,5 +434,91 @@ func TestANewSessionIsSampledAtOnce(t *testing.T) {
 			t.Fatal("no sample after the new session: it waits for the tick")
 		}
 		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func TestNewStartsCursor(t *testing.T) {
+	for _, agent := range []string{"cursor-agent", "cursor"} {
+		s, ran := lifeTest(t)
+		dir := t.TempDir()
+		res := s.act(t.Context(), newAct(t, proto.NewSession{Where: dir, Agent: agent, Name: "fresh", First: "fix the build"}))
+		if res.Err != "" || len(*ran) != 1 {
+			t.Fatalf("%s: err %q ran %q", agent, res.Err, *ran)
+		}
+		if got := strings.Join((*ran)[0], " "); !strings.HasSuffix(got, "-c "+dir+" cursor-agent fix the build") {
+			t.Errorf("%s: ran %q", agent, got)
+		}
+	}
+}
+
+// TestNewStartsCursorByAgentWhenOnlyThatIsInstalled: Cursor's installer
+// adds both commands, a hand install may add only `agent`.
+func TestNewStartsCursorByAgentWhenOnlyThatIsInstalled(t *testing.T) {
+	s, ran := lifeTest(t)
+	agent := cursorInstall(t)
+	s.LookPath = func(cmd string) (string, error) {
+		switch cmd {
+		case "cursor-agent":
+			return "", exec.ErrNotFound
+		case "agent":
+			return agent, nil
+		}
+		return "/usr/bin/" + cmd, nil
+	}
+	dir := t.TempDir()
+	if res := s.act(t.Context(), newAct(t, proto.NewSession{Where: dir, Agent: "cursor-agent", Name: "fresh", First: "fix the build"})); res.Err != "" {
+		t.Fatal(res.Err)
+	}
+	if got := strings.Join((*ran)[0], " "); !strings.HasSuffix(got, "-c "+dir+" agent fix the build") {
+		t.Errorf("ran %q", got)
+	}
+	if !slices.Contains(s.startable(), "cursor-agent") {
+		t.Errorf("startable %q, want cursor-agent", s.startable())
+	}
+}
+
+// cursorInstall is Cursor's installer's `agent`: a link into its versions.
+func cursorInstall(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	bin := filepath.Join(home, ".local", "share", "cursor-agent", "versions", "2026.10.19-6bbf2c4", "cursor-agent")
+	link := filepath.Join(home, ".local", "bin", "agent")
+	for _, d := range []string{filepath.Dir(bin), filepath.Dir(link)} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(bin, link); err != nil {
+		t.Fatal(err)
+	}
+	return link
+}
+
+// TestAnotherAgentIsNotCursor: "agent" is a common name. Only Cursor's
+// own counts for Cursor.
+func TestAnotherAgentIsNotCursor(t *testing.T) {
+	s, ran := lifeTest(t)
+	other := filepath.Join(t.TempDir(), "agent")
+	if err := os.WriteFile(other, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	s.LookPath = func(cmd string) (string, error) {
+		switch cmd {
+		case "cursor-agent":
+			return "", exec.ErrNotFound
+		case "agent":
+			return other, nil
+		}
+		return "/usr/bin/" + cmd, nil
+	}
+	if slices.Contains(s.startable(), "cursor-agent") {
+		t.Errorf("startable %q offers cursor-agent for another agent", s.startable())
+	}
+	res := s.act(t.Context(), newAct(t, proto.NewSession{Where: t.TempDir(), Agent: "cursor-agent", Name: "fresh"}))
+	if res.Err != "cursor-agent is not installed here" || len(*ran) != 0 {
+		t.Errorf("err %q ran %q, want it not installed", res.Err, *ran)
 	}
 }

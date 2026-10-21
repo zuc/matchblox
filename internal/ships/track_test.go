@@ -147,7 +147,8 @@ func TestRecordedAnswer(t *testing.T) {
 	for n, w := range want {
 		f := a.PRs[n]
 		if f == nil {
-			t.Fatalf("#%d: no facts", n)
+			t.Errorf("#%d: no facts", n)
+			continue
 		}
 		if f.Method != "squash" {
 			t.Errorf("#%d method %q", n, f.Method)

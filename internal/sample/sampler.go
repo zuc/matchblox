@@ -715,8 +715,10 @@ func (s *Sampler) sampleSessions(snap *Snapshot, panes []Pane, procs map[int]pro
 // different in /proc depending on how it was installed: a native binary or
 // a Python entry point has the agent's process name; a node agent started
 // by a wrapper keeps the name in argv[0] while its process name is node's
-// "MainThread"; an npm script runs as `node <path>/<agent>`. The argv half
-// is read once per process and kept while its process name stays the same.
+// "MainThread"; an npm script runs as `node <path>/<agent>`. Cursor's
+// `agent` launcher is node with the launcher's path in argv[0] and Cursor's
+// index.js after it. The argv half is read once per process and kept while
+// its process name stays the same.
 func (s *Sampler) agentName(pid int, p procfs.Proc) string {
 	if s.isAgent(p.Comm) {
 		return p.Comm
@@ -737,8 +739,14 @@ func (s *Sampler) agentName(pid int, p procfs.Proc) string {
 				}
 			}
 		}
-		if s.isAgent(cmd) {
+		switch {
+		case s.isAgent(cmd):
 			name = cmd
+		case s.isAgent(CursorAgent) && cursorLauncher(argv):
+			name = CursorAgent
+		}
+		if name == CursorAgent && cursorPrint(argv) {
+			name = ""
 		}
 	}
 	s.names[key] = agentRef{p.Comm, name}
@@ -746,6 +754,37 @@ func (s *Sampler) agentName(pid int, p procfs.Proc) string {
 }
 
 type agentRef struct{ comm, name string }
+
+// CursorAgent is Cursor's CLI, by the command its installer adds beside
+// `agent`.
+const CursorAgent = "cursor-agent"
+
+// cursorPrint: argv is a print run of Cursor's CLI (-p), a script's, with
+// no one at it: no session.
+func cursorPrint(argv []string) bool {
+	for _, a := range argv[1:] {
+		if a == "-p" || a == "--print" || strings.HasPrefix(a, "--print=") {
+			return true
+		}
+	}
+	return false
+}
+
+// cursorLauncher: argv runs Cursor's CLI, whatever its argv[0]. Its
+// worker-server runs the same script and is no session: it outlives the
+// `agent -p` that started it.
+func cursorLauncher(argv []string) bool {
+	cursor := false
+	for _, a := range argv[1:] {
+		if a == "worker-server" {
+			return false
+		}
+		if strings.HasSuffix(a, "/index.js") && strings.Contains(a, "/cursor-agent/versions/") {
+			cursor = true
+		}
+	}
+	return cursor
+}
 
 // interpreter tells a program that runs an agent's script: its argv[0] is
 // the interpreter and the agent is the first argument that is not a flag.

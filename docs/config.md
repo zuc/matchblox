@@ -33,7 +33,7 @@ To use another file, give `matchblox --config <file>`.
 `[stoker] agent` is the command of the stoker agent. matchblox starts it
 itself, on a tmux server of its own (`tmux -L matchblox`, session
 `stoker`), the first time you press `f` or `n`. It is `claude` by default.
-`codex` and `opencode` work too. The command must be on the service's
+`codex`, `opencode` and `agent` (Cursor) work too. The command must be on the service's
 `PATH`.
 
 `[stoker] pane` is gone: you no longer start the stoker in a pane of your

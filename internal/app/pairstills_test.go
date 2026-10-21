@@ -23,7 +23,7 @@ func TestPairStills(t *testing.T) {
 	}{
 		{"shut", boxState{phase: boxShut, link: link}},
 		{"knock", boxState{phase: boxKnock, since: 30 * time.Millisecond, link: link}},
-		{"open", boxState{phase: boxOpen, since: 2 * time.Second, link: link, name: "Martin's iPad"}},
+		{"open", boxState{phase: boxOpen, since: 2 * time.Second, link: link, name: "Morgan's iPad"}},
 	}
 	dir := filepath.Join("..", "..", "testdata", "pair", "stills")
 	for _, m := range moments {

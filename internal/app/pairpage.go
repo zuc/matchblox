@@ -452,14 +452,14 @@ func (m Model) pairView(w int) string {
 		line += "   " + m.st.muted.Render(fmt.Sprintf("%d:%02d", int(left.Minutes()), int(left.Seconds())%60))
 	}
 	var keys []string
+	if m.flash != "" { // first, so a narrow terminal cuts the keys, not the flash
+		keys = append(keys, m.st.text.Render(m.flash))
+	}
 	switch {
 	case p.live():
 		keys = append(keys, m.st.muted.Render(pairKeyLine))
 	case p.failed && !p.standalone:
 		keys = append(keys, m.st.muted.Render(pairFailedKeyLine))
-	}
-	if m.flash != "" {
-		keys = append(keys, m.st.text.Render(m.flash))
 	}
 	text := []string{"", centre(line), centre(strings.Join(keys, "   "))}
 	if p.failed { // an error says how to fix it: wrapped, never cut

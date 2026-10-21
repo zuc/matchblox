@@ -41,7 +41,7 @@ type Doc struct {
 	// agent on: a session whose pane is on it is the stoker's. Empty: none.
 	StokerServer string `json:"stoker_server,omitempty"`
 	// Agents are the agents a new session can start on this host: the
-	// installed ones of claude, codex and opencode.
+	// installed ones of claude, codex, opencode and cursor-agent.
 	Agents []string `json:"agents,omitempty"`
 	// Renames are the names sessions take at their next rest, by pane.
 	Renames map[string]string `json:"renames,omitempty"`

@@ -79,7 +79,7 @@ func TestNewSessionEscSendsNothing(t *testing.T) {
 func TestNewSessionWithNoAgentSaysWhy(t *testing.T) {
 	m, _ := loadedWith(t, 100, queueState())
 	next, _ := key(m, "N")
-	if nm := next.(Model); nm.form != nil || nm.flash != "no agent to start here: install claude, codex or opencode" {
+	if nm := next.(Model); nm.form != nil || nm.flash != "no agent to start here: install claude, codex, opencode or cursor-agent" {
 		t.Fatalf("form %+v flash %q", nm.form, nm.flash)
 	}
 }

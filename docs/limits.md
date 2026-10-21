@@ -5,8 +5,8 @@ What does not work yet, and what to do until it does.
 | Limit | What to do |
 |---|---|
 | The way back needs the console's own session | Run `matchblox` outside tmux. The tap on `◂ matchblox` also needs the tmux mouse: press `m` in the way back's preview. |
-| The stoker compacts Claude Code only | Compact Codex and OpenCode sessions yourself: Sessions marks them `! compact`. |
-| The merge guard watches Claude Code only | A Codex or OpenCode session has no hook for it. The STOKER tab says `no merge guard watches <session>`, with each go the run does not give it (`its merges, releases and deploys go unchecked`): give such a session none of them, or do them yourself. |
+| The stoker compacts Claude Code only | Compact Codex, OpenCode and Cursor sessions yourself: Sessions marks them `! compact`. |
+| The merge guard watches Claude Code only | A Codex, OpenCode or Cursor session has no hook for it. The STOKER tab says `no merge guard watches <session>`, with each go the run does not give it (`its merges, releases and deploys go unchecked`): give such a session none of them, or do them yourself. |
 | The guard does not see what you type straight into a pane | Send from the console (`a`) or stop the stoker. |
 | A rest trigger fires for Claude Code only | `matchblox stoker when --rest` waits for the end of a turn, which only Claude Code's transcript tells. For a Codex or OpenCode session, the stoker sets a ship trigger or waits for its wake. |
 | The merge guard is a seatbelt, not a sandbox | It keeps an agent that acts in good faith on the stoker's messages to the order: the ways an honest agent writes `gh pr merge`, `gh release` and `gh workflow run` are caught, and so is any line in which `gh` comes before a guarded word (`merge`, `release`, `workflow`, `api`, `graphql`, `mergePullRequest`). An agent that hides the command on purpose goes past it: a variable, `eval`, an alias of the shell or of `gh` (`gh alias set`), a function, a script, brace or glob expansion (`{gh,} pr merge`, `/usr/bin/g[h]`), a `GH` that a case-insensitive file system runs as `gh`, or a here-doc or `$((…))` that the guard reads apart from the shell. Protect your branches on GitHub, and give the order only the goes you mean. |
@@ -19,16 +19,16 @@ What does not work yet, and what to do until it does.
 | A go you gave with `y` lasts until it is used | A go that nothing used yet stays in its pane until the run ends. Give the go when the session is about to run the command, and stop the stoker to take back one you no longer want. |
 | Triggers need the stoker agent running | A trigger's hand runs as an act from the stoker's own pane. With no stoker agent in it, each trigger that fires logs `failed` and does nothing. Keep the stoker pane's agent running while triggers wait. |
 | Codex context use needs Linux | On macOS, Codex shows "not measured". |
-| Context use for Claude Code, Codex and OpenCode only | Other agents show "not measured", and still show in Sessions. |
+| Context use for Claude Code, Codex and OpenCode only | Other agents show "not measured", and still show in Sessions. Cursor shows no context use or account yet. |
 | A Claude model that matchblox does not know has no window | Without the status line, a new model shows "not measured" until matchblox knows it. Open the door "Show your limits" in Sessions: the status line then gives each session its window. Or set the model in `[sessions.windows]`. |
-| Waits of agents other than Claude Code come from their pane | They wait for you in Sessions once their pane is idle and its last lines ask. |
+| Waits of agents other than Claude Code and Cursor come from their pane | They wait for you in Sessions once their pane is idle and its last lines ask. Cursor's approval menu is read from its pane too. |
 | Plan limits for Claude Code and Codex only | OpenCode's usage shows "not measured". |
 | Ships reads GitHub only | A pull request on another forge does not show. |
 | No week of Opus or Sonnet in usage | Claude Code's status line gives the 5-hour window and the week only. |
 | tmux only | Run your agents in tmux. |
-| New session starts Claude Code, Codex and OpenCode only | Start another agent in tmux yourself: Sessions shows it all the same. |
+| New session starts Claude Code, Codex, OpenCode and Cursor only | Start another agent in tmux yourself: Sessions shows it all the same. |
 | New session finds an agent on the service's `PATH` | An agent that is a shell alias, or on a `PATH` only your shell sets, is not offered. Put it on the `PATH` the service runs with, or start it yourself. |
-| Rename names a Codex or OpenCode agent in tmux only | They keep no name of their own. Claude Code takes `/rename` at rest, so a busy session is renamed when it rests. |
+| Rename names a Codex, OpenCode or Cursor agent in tmux only | They keep no name of their own. Claude Code takes `/rename` at rest, so a busy session is renamed when it rests. |
 | No native Windows | Use Linux or macOS. |
 | One host on a screen | `esc` goes back to Hosts. |
 

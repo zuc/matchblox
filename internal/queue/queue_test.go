@@ -458,3 +458,115 @@ func TestHookAskEndsWithItsTurn(t *testing.T) {
 		t.Fatalf("the call came back: %+v", got)
 	}
 }
+
+// TestACursorEventJoinsOnlyACursorSession: Cursor's hooks are global, so an
+// `agent -p` in another agent's pane sends its events from that pane too.
+// They are Cursor's, and never decide another agent's session.
+func TestACursorEventJoinsOnlyACursorSession(t *testing.T) {
+	q := New()
+	q.Apply(hooks.Event{Name: "Stop", Agent: hooks.CursorAgent, SessionID: "chat1", Pane: "%6", At: at(0)})
+	codex := session("", "%6", "api", "idle", time.Minute)
+	codex.Agent = "codex"
+	q.Merge([]sample.Session{codex}, at(10))
+	if items := q.Items(); len(items) != 1 || !items[0].Estimated {
+		t.Errorf("codex items %+v, want the one estimated from its pane", items)
+	}
+	cursor := session("", "%6", "api", "idle", time.Minute)
+	cursor.Agent = sample.CursorAgent
+	q.Merge([]sample.Session{cursor}, at(11))
+	if items := q.Items(); len(items) != 1 || items[0].State != StateFinished || items[0].Estimated {
+		t.Errorf("cursor items %+v, want one finished from the hook", items)
+	}
+}
+
+// TestAHookedCursorSessionThatPermitsWaitsForPermission: no Cursor hook
+// fires when its approval menu draws, so its pane tells it.
+func TestAHookedCursorSessionThatPermitsWaitsForPermission(t *testing.T) {
+	q := New()
+	q.Apply(hooks.Event{Name: "UserPromptSubmit", Agent: hooks.CursorAgent, SessionID: "chat1", Pane: "%7", At: at(0)})
+	q.Apply(hooks.Event{Name: "UserPromptSubmit", SessionID: "c1", Pane: "%8", At: at(0)})
+	cursor := session("", "%7", "web", "idle", time.Minute)
+	cursor.Agent, cursor.Permits, cursor.FromPane, cursor.LastLine = sample.CursorAgent, true, true, "Run this command?"
+	claude := session("c1", "%8", "api", "idle", time.Minute)
+	claude.Agent, claude.Permits = "claude", true
+	q.Merge([]sample.Session{cursor, claude}, at(10))
+	items := q.Items()
+	if len(items) != 1 || items[0].Pane != "%7" || items[0].State != StatePermission || items[0].LastLine != "Run this command?" {
+		t.Errorf("items %+v, want one permission wait of %%7", items)
+	}
+}
+
+// TestACursorReplyFillsItsFinishedTurn: Cursor's reply comes after its
+// stop, in afterAgentResponse. It fills the finished turn's line, and a
+// reply that asks makes it a question; with no finished turn it is nothing.
+func TestACursorReplyFillsItsFinishedTurn(t *testing.T) {
+	cursor := session("", "%6", "app", "idle", time.Minute)
+	cursor.Agent = sample.CursorAgent
+	stop := hooks.Event{Name: "Stop", Agent: hooks.CursorAgent, SessionID: "chat1", Pane: "%6", Turn: "g1"}
+	reply := hooks.Event{Name: hooks.Reply, Agent: hooks.CursorAgent, SessionID: "chat1", Pane: "%6", Turn: "g1", Message: "Shall I also push it?", Asks: true}
+	// Cursor runs both hooks at once: they come in either order, each
+	// stamped when its own process read it.
+	for name, evs := range map[string][]hooks.Event{
+		"stop, then reply":              {at0(stop, 0), at0(reply, 1)},
+		"reply, then stop":              {at0(reply, 1), at0(stop, 0)},
+		"reply stamped before the stop": {at0(stop, 1), at0(reply, 0)},
+	} {
+		q := New()
+		for _, ev := range evs {
+			q.Apply(ev)
+		}
+		q.Merge([]sample.Session{cursor}, at(10))
+		if items := q.Items(); len(items) != 1 || items[0].State != StateQuestion || items[0].LastLine != "Shall I also push it?" {
+			t.Errorf("%s: items %+v, want one question", name, items)
+		}
+	}
+	other := reply
+	other.Turn = "g0"
+	q := New()
+	q.Apply(at0(other, 0))
+	q.Apply(at0(stop, 1))
+	q.Merge([]sample.Session{cursor}, at(10))
+	if items := q.Items(); len(items) != 1 || items[0].State != StateFinished || items[0].LastLine != "" {
+		t.Errorf("a reply of another turn: %+v, want finished with no line", items)
+	}
+	q = New()
+	q.Apply(hooks.Event{Name: "UserPromptSubmit", Agent: hooks.CursorAgent, SessionID: "chat1", Pane: "%6", At: at(0)})
+	q.Apply(hooks.Event{Name: hooks.Reply, Agent: hooks.CursorAgent, SessionID: "chat1", Pane: "%6", At: at(1), Message: "partial"})
+	q.Merge([]sample.Session{cursor}, at(10))
+	if items := q.Items(); len(items) != 0 {
+		t.Errorf("a reply with no finished turn: %+v, want none", items)
+	}
+}
+
+func at0(ev hooks.Event, s int) hooks.Event {
+	ev.At = at(s)
+	return ev
+}
+
+// TestAnUnpairedReplyIsDropped: a Reply whose session never stops (an
+// `agent -p` the sampler never sees) is not kept for ever.
+func TestAnUnpairedReplyIsDropped(t *testing.T) {
+	q := New()
+	q.Apply(hooks.Event{Name: hooks.Reply, Agent: hooks.CursorAgent, SessionID: "stray", Turn: "g1", At: at(0)})
+	q.Merge(nil, at(0).Add(UnseenGrace+time.Second))
+	if len(q.replies) != 0 {
+		t.Errorf("replies %+v, want none", q.replies)
+	}
+}
+
+// TestTwoChatsInOnePaneJoinTheNewer: an interactive Cursor that runs
+// `agent -p` with its shell tool sends two chats' events from one pane.
+// The pane's session is the chat that spoke last, the same on every merge.
+func TestTwoChatsInOnePaneJoinTheNewer(t *testing.T) {
+	cursor := session("", "%6", "app", "idle", time.Minute)
+	cursor.Agent = sample.CursorAgent
+	q := New()
+	q.Apply(hooks.Event{Name: "UserPromptSubmit", Agent: hooks.CursorAgent, SessionID: "print", Pane: "%6", At: at(0)})
+	q.Apply(hooks.Event{Name: "Stop", Agent: hooks.CursorAgent, SessionID: "chat", Pane: "%6", At: at(5)})
+	for i := range 50 {
+		q.Merge([]sample.Session{cursor}, at(10+i))
+		if items := q.Items(); len(items) != 1 || items[0].SessionID != "chat" || items[0].State != StateFinished {
+			t.Fatalf("merge %d: items %+v, want the chat's finished turn", i, items)
+		}
+	}
+}

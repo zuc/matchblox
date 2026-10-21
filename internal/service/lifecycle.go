@@ -36,13 +36,45 @@ const KillAnyway = "anyway"
 
 // Startable are the agents matchblox starts, each with its way to take a
 // name and a first message.
-var Startable = []string{"claude", "codex", "opencode"}
+var Startable = []string{"claude", "codex", "opencode", sample.CursorAgent}
 
-// launchArgv is the agent's command: Claude Code takes the session's name
-// (--name, which its /rename changes later) and the first message as its
-// prompt; Codex takes the prompt; OpenCode takes it with --prompt.
-func launchArgv(agent, name, first string) []string {
-	argv := []string{agent}
+// cursorBins are the commands Cursor's CLI is installed as, the first one
+// found the one a new session runs; `agent` only when it is Cursor's.
+var cursorBins = []string{sample.CursorAgent, "agent"}
+
+// agentBin is the command that starts agent here ("" when none is
+// installed), agent itself but for Cursor's CLI.
+func agentBin(agent string, look func(string) (string, error)) string {
+	bins := []string{agent}
+	if agent == sample.CursorAgent {
+		bins = cursorBins
+	}
+	for _, b := range bins {
+		path, err := look(b)
+		if err != nil {
+			continue
+		}
+		if b == "agent" && !cursorsAgent(path) {
+			continue
+		}
+		return b
+	}
+	return ""
+}
+
+// cursorsAgent: the `agent` at path is Cursor's, a link into its installed
+// versions. Other tools are called agent too.
+func cursorsAgent(path string) bool {
+	real, err := filepath.EvalSymlinks(path)
+	return err == nil && strings.Contains(filepath.ToSlash(real), "/cursor-agent/versions/")
+}
+
+// launchArgv is the agent's command, run as bin: Claude Code takes the
+// session's name (--name, which its /rename changes later) and the first
+// message as its prompt; Codex and Cursor take the prompt; OpenCode takes
+// it with --prompt.
+func launchArgv(bin, agent, name, first string) []string {
+	argv := []string{bin}
 	switch agent {
 	case "claude":
 		argv = append(argv, "--name", name)
@@ -269,6 +301,15 @@ func (r *renameState) names() map[string]string {
 	return out
 }
 
+// agentBin is the command that starts agent on this machine.
+func (s *Service) agentBin(agent string) string {
+	look := s.LookPath
+	if look == nil {
+		look = exec.LookPath
+	}
+	return agentBin(agent, look)
+}
+
 // startable are the agents of Startable installed here.
 func (s *Service) startable() []string {
 	look := s.LookPath
@@ -277,7 +318,7 @@ func (s *Service) startable() []string {
 	}
 	var out []string
 	for _, a := range Startable {
-		if _, err := look(a); err == nil {
+		if agentBin(a, look) != "" {
 			out = append(out, a)
 		}
 	}
@@ -362,6 +403,9 @@ func (s *Service) newSession(ctx context.Context, a proto.Act) proto.Result {
 	if err := json.Unmarshal([]byte(a.Text), &n); err != nil {
 		return proto.Result{Err: "the new session does not read: " + err.Error()}
 	}
+	if n.Agent == "cursor" {
+		n.Agent = sample.CursorAgent
+	}
 	steps, name, dir, err := s.newSteps(ctx, n)
 	if err != nil {
 		return proto.Result{Err: err.Error()}
@@ -369,7 +413,7 @@ func (s *Service) newSession(ctx context.Context, a proto.Act) proto.Result {
 	steps = append(steps, slices.Concat(
 		[]string{"env", "-u", "GIT_TERMINAL_PROMPT", "-u", "GIT_SSH_COMMAND", "-u", panes.HomeEnv},
 		sample.TmuxOn(""), []string{"new-session", "-d", "-s", name, "-n", name, "-c", dir},
-		launchArgv(n.Agent, name, n.First)))
+		launchArgv(s.agentBin(n.Agent), n.Agent, name, n.First)))
 	res := s.Actions.Do(ctx, advice.Action{Label: "new session", Steps: steps}, a.Confirm)
 	if res.Err != "" || len(res.Ran) < len(steps) {
 		return res
@@ -394,7 +438,7 @@ func (s *Service) newSteps(ctx context.Context, n proto.NewSession) (steps [][]s
 	}
 	switch {
 	case !slices.Contains(Startable, n.Agent):
-		return nil, "", "", fmt.Errorf("%s is not an agent matchblox starts: claude, codex or opencode", n.Agent)
+		return nil, "", "", fmt.Errorf("%s is not an agent matchblox starts: claude, codex, opencode or cursor-agent", n.Agent)
 	}
 	if rest, ok := strings.CutPrefix(n.Where, "~/"); ok || n.Where == "~" {
 		home, err := os.UserHomeDir()
@@ -406,7 +450,7 @@ func (s *Service) newSteps(ctx context.Context, n proto.NewSession) (steps [][]s
 	if !filepath.IsAbs(n.Where) {
 		return nil, "", "", errors.New("a new session starts in a full path")
 	}
-	if _, err := look(n.Agent); err != nil {
+	if agentBin(n.Agent, look) == "" {
 		return nil, "", "", fmt.Errorf("%s is not installed here", n.Agent)
 	}
 	if n.First != "" {

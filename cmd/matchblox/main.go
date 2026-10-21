@@ -133,6 +133,9 @@ func run(args []string) error {
 		cfg, _ := config.Load(config.Path())
 		return statusLine(args[2:], os.Stdin, os.Stdout, os.Getenv, filepath.Dir(state.Path()), cfg, time.Now())
 	}
+	if len(args) > 1 && args[0] == "hook" && args[1] == "--cursor" {
+		return hookCursor(os.Stdin, os.Stdout, transport.SocketPath(), spoolPath())
+	}
 	if len(args) > 0 && args[0] == "hook" {
 		return hook(args[1:], os.Stdin, os.Stdout, transport.SocketPath(), spoolPath(), progressPrompt(args[1:]))
 	}
@@ -323,7 +326,7 @@ func newFlags() (*flag.FlagSet, flags) {
 		list:     fl.Bool("list", false, "stoker when: print the run's triggers"),
 		anyway:   fl.Bool("anyway", false, "kill: kill a session that works or waits for you"),
 		where:    fl.String("where", "", "new: the directory, or the repository of --branch (default: here)"),
-		agent:    fl.String("agent", "claude", "new: the agent to start: claude, codex or opencode"),
+		agent:    fl.String("agent", "claude", "new: the agent to start: claude, codex, opencode or cursor-agent"),
 		branch:   fl.String("branch", "", "new: first add a worktree for this new branch, beside the repository"),
 		name:     fl.String("name", "", "new: the name of the session, its tmux session and its agent (default: the directory's)"),
 		noMotion: fl.Bool("no-motion", os.Getenv("NO_MOTION") == "1", "every motion is an instant change (also NO_MOTION=1)"),
@@ -404,6 +407,21 @@ func hook(args []string, stdin io.Reader, out io.Writer, sock, spool string, pro
 		// Claude Code adds what a SessionStart hook prints to the session's
 		// context; the console reads the bar back from the transcript.
 		_, _ = fmt.Fprintln(out, hooks.ProgressPrompt)
+	}
+	return nil
+}
+
+// hookCursor delivers one event of Cursor's hooks (`matchblox hook
+// --cursor`; the event is in the payload), as hook does. It prints nothing:
+// Cursor reads what a hook prints, and a stop hook's followup_message would
+// start a turn.
+func hookCursor(stdin io.Reader, _ io.Writer, sock, spool string) error {
+	ev, err := hooks.ParseCursor(stdin, os.Getenv)
+	if err != nil {
+		return nil
+	}
+	if transport.Notify(sock, hookTimeout, proto.KindHook, ev) != nil {
+		_ = hooks.Append(spool, ev)
 	}
 	return nil
 }

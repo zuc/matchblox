@@ -282,7 +282,7 @@ func TestSheetBlankOrderIsSent(t *testing.T) {
 // PATH: the sheet names it and how to set another before ⏎, starts
 // nothing, and ⏎ turns today's stoker on.
 func TestTheDoorShowsWhenTheAgentIsNotOnPath(t *testing.T) {
-	missing := `codex is not on PATH: install it, or name the stoker's agent in config.toml, [stoker] agent = "codex" (or opencode)`
+	missing := `codex is not on PATH: install it, or name the stoker's agent in config.toml, [stoker] agent = "codex" (or opencode, cursor-agent)`
 	m, f := loadedWith(t, 100, sheetState(proto.StokerView{Agent: "codex", Missing: missing}, "matchblox"))
 	next := sendKey(m, "n")
 	if s := screen(next); !strings.Contains(s, "! codex is not on PATH") || strings.Contains(s, startingText) || !strings.Contains(s, "⏎ start") {

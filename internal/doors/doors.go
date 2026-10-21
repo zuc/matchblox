@@ -11,15 +11,17 @@ import (
 
 // The doors, in the order the console shows them.
 const (
-	Tmux      = "tmux"
-	Hooks     = "hooks"
-	Limits    = "limits"
-	SafetyNet = "safetynet"
-	WayBack   = "wayback"
-	Pair      = "pair"
-	Guide     = "guide"
-	Night     = "night"
-	Ways      = "ways"
+	Tmux  = "tmux"
+	Hooks = "hooks"
+	// CursorHooks adds matchblox to Cursor's hooks.
+	CursorHooks = "cursorhooks"
+	Limits      = "limits"
+	SafetyNet   = "safetynet"
+	WayBack     = "wayback"
+	Pair        = "pair"
+	Guide       = "guide"
+	Night       = "night"
+	Ways        = "ways"
 	// KeepRunning writes a user unit, then runs Term: the service writes
 	// the file and runs the command, so the terminal never runs it.
 	KeepRunning = "keeprunning"

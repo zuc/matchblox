@@ -26,6 +26,38 @@ func TestScreen(t *testing.T) {
 
   Press enter to confirm or esc to cancel
 `, "Would you like to run the following command?", Permits},
+		// Cursor's CLI, captured on a live machine.
+		{"cursor approval", `
+  Run the shell command: touch second.txt && date
+  Running that command now.
+  $ touch second.txt && date Waiting for approval...
+────────────────────────────────────────────────────────────
+ $  touch second.txt && date in .
+ Run this command?
+ Not in allowlist: date, touch
+  → Run (once) (y)
+    Add Shell(touch), Shell(date) to allowlist? (tab)
+    Run Everything (shift+tab)
+    Skip & tell the agent what to do instead (esc or n)
+`, "Run this command?", Permits},
+		{"cursor at rest", `
+  Done. second.txt was created.
+ ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  → Add a follow-up
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  Auto · 5.7%
+  /work/app · main
+`, "Done. second.txt was created.", None},
+		{"cursor before its first turn", `
+  Cursor Agent
+  v2026.10.19-6bbf2c4
+  Tip: Use /plan to plan execution and reach the right outcome faster.
+ ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+  → Plan, search, build anything
+ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  Auto
+  /work/app · main
+`, "Tip: Use /plan to plan execution and reach the right outcome faster.", None},
 		{"opencode permission", `
 ┃  Permission required
 ┃  $ rm -rf build

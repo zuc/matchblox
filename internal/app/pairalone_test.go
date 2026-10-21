@@ -15,7 +15,7 @@ import (
 
 // aloneRun runs RunPairPage on a pipe: act sees the home once the key line
 // is written, and may write to the terminal.
-func aloneRun(t *testing.T, host func(home, hostKey string) *PairHost, act func(home, id string, tty io.Writer)) (string, error, string, string) {
+func aloneRun(t *testing.T, host func(home, hostKey string) *PairHost, act func(home, id string, tty io.Writer)) (string, string, string, error) {
 	t.Helper()
 	r, _ := newPairRig(t)
 	hostKey := filepath.Join(t.TempDir(), "host.pub")
@@ -39,13 +39,13 @@ func aloneRun(t *testing.T, host func(home, hostKey string) *PairHost, act func(
 	res, err := RunPairPage(PairOptions{Host: host(r.home, hostKey), NoMotion: true, In: in, cols: 100, rows: 40, Out: &out,
 		Paired: func(d PairDevice) string { return "Paired " + d.Name }})
 	b, _ := os.ReadFile(filepath.Join(r.home, ".ssh", "authorized_keys"))
-	return res, err, string(b), out.String()
+	return res, string(b), out.String(), err
 }
 
 func standardHost(home, hostKey string) *PairHost { return testPairHost(home, pairExe, hostKey) }
 
 func TestRunPairPageStopsOnCtrlC(t *testing.T) {
-	res, err, keys, out := aloneRun(t, standardHost, func(_, _ string, tty io.Writer) {
+	res, keys, out, err := aloneRun(t, standardHost, func(_, _ string, tty io.Writer) {
 		time.Sleep(300 * time.Millisecond) // the page draws first
 		_, _ = tty.Write([]byte{3})
 	})
@@ -61,7 +61,7 @@ func TestRunPairPageStopsOnCtrlC(t *testing.T) {
 }
 
 func TestRunPairPageStopsOnEsc(t *testing.T) {
-	res, err, keys, _ := aloneRun(t, standardHost, func(_, _ string, tty io.Writer) { _, _ = tty.Write([]byte{27}) })
+	res, keys, _, err := aloneRun(t, standardHost, func(_, _ string, tty io.Writer) { _, _ = tty.Write([]byte{27}) })
 	if err != nil || res != "Stopped. The code no longer works." || strings.Contains(keys, "gate pair") {
 		t.Fatalf("result %q, err %v, keys %q", res, err, keys)
 	}
@@ -69,7 +69,7 @@ func TestRunPairPageStopsOnEsc(t *testing.T) {
 
 func TestRunPairPageNamesTheDevice(t *testing.T) {
 	start := time.Now()
-	res, err, keys, _ := aloneRun(t, standardHost, func(home, id string, _ io.Writer) {
+	res, keys, _, err := aloneRun(t, standardHost, func(home, id string, _ io.Writer) {
 		if _, err := setup.ClaimPairKey(home, pairExe, id, pairPhoneKey, "iPad"); err != nil {
 			t.Error(err)
 		}
@@ -86,7 +86,7 @@ func TestRunPairPageNamesTheDevice(t *testing.T) {
 }
 
 func TestRunPairPageReturnsTheOfferError(t *testing.T) {
-	_, err, _, _ := aloneRun(t, func(string, string) *PairHost {
+	_, _, _, err := aloneRun(t, func(string, string) *PairHost {
 		h := testPairHost("", "", "")
 		h.Offer = func(time.Time) (string, string, error) { return "", "", errors.New("no host key") }
 		return h
