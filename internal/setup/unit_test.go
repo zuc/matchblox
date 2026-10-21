@@ -47,7 +47,7 @@ func TestTheKeepRunningDoorWritesAPlistOnMacOS(t *testing.T) {
 			t.Errorf("plist lacks %q:\n%s", want, b)
 		}
 	}
-	if want := [][]string{{"launchctl", "bootstrap", "gui/501", plist}}; !slices.EqualFunc(*ran, want, slices.Equal) {
+	if want := [][]string{{"launchctl", "bootout", "gui/501/com.blox.matchblox"}, {"launchctl", "bootstrap", "gui/501", plist}}; !slices.EqualFunc(*ran, want, slices.Equal) {
 		t.Fatalf("ran = %q, want %q", *ran, want)
 	}
 }
@@ -130,5 +130,92 @@ func TestNoKeepRunningDoorOnOtherSystems(t *testing.T) {
 		if d.ID == doors.KeepRunning {
 			t.Fatalf("door on windows: %+v", d)
 		}
+	}
+}
+
+func TestAFailedStartLeavesTheDoorOpen(t *testing.T) {
+	for _, goos := range []string{"darwin", "linux"} {
+		e, _ := unitEnv(t, goos)
+		e.Run = func(argv []string) error {
+			if argv[1] == "bootout" {
+				return errors.New("not loaded") // ignored
+			}
+			return errors.New("already loaded")
+		}
+		d := door(t, e, doors.KeepRunning)
+		if _, err := Open(e, doors.KeepRunning, d.Sum, false); err == nil || !strings.Contains(err.Error(), "already loaded") {
+			t.Fatalf("%s: err = %v", goos, err)
+		}
+		if d := door(t, e, doors.KeepRunning); d.Done || !d.Open() {
+			t.Fatalf("%s: door after a failed start = %+v", goos, d)
+		}
+		// An older unit comes back as it was.
+		mine := []byte("old unit\n")
+		if err := os.MkdirAll(filepath.Dir(d.Path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(d.Path, mine, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		d = door(t, e, doors.KeepRunning)
+		if _, err := Open(e, doors.KeepRunning, d.Sum, false); err == nil {
+			t.Fatalf("%s: no error", goos)
+		}
+		if got, _ := os.ReadFile(d.Path); string(got) != string(mine) {
+			t.Fatalf("%s: file = %q, want the old unit back", goos, got)
+		}
+	}
+}
+
+func TestAnUpdateReplacesTheLoadedAgent(t *testing.T) {
+	e, ran := unitEnv(t, "darwin")
+	e.Exe = "/old/matchblox"
+	d := door(t, e, doors.KeepRunning)
+	if _, err := Open(e, doors.KeepRunning, d.Sum, false); err != nil {
+		t.Fatal(err)
+	}
+	*ran = nil
+	e.Exe = exe
+	d = door(t, e, doors.KeepRunning)
+	if !d.Open() || !strings.Contains(d.Preview, "-\t\t<string>/old/matchblox</string>") {
+		t.Fatalf("door = %+v", d)
+	}
+	if _, err := Open(e, doors.KeepRunning, d.Sum, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(*ran) != 2 || (*ran)[0][1] != "bootout" || (*ran)[1][1] != "bootstrap" {
+		t.Fatalf("ran = %q", *ran)
+	}
+	if b, _ := os.ReadFile(d.Path); !strings.Contains(string(b), exe) || strings.Contains(string(b), "/old/") {
+		t.Fatalf("plist:\n%s", b)
+	}
+}
+
+func TestTheUnitCarriesThePATHOfTheProcessThatOpensIt(t *testing.T) {
+	const path = "/opt/homebrew/bin:/usr/bin:/odd%dir"
+	for goos, want := range map[string]string{
+		"darwin": "<key>EnvironmentVariables</key>\n\t<dict>\n\t\t<key>PATH</key>\n\t\t<string>" + path + "</string>",
+		"linux":  "Environment=\"PATH=/opt/homebrew/bin:/usr/bin:/odd%%dir\"\n",
+	} {
+		e, _ := unitEnv(t, goos)
+		e.Getenv = func(k string) string {
+			if k == "PATH" {
+				return path
+			}
+			return ""
+		}
+		d := door(t, e, doors.KeepRunning)
+		if _, err := Open(e, doors.KeepRunning, d.Sum, false); err != nil {
+			t.Fatal(err)
+		}
+		if b, _ := os.ReadFile(d.Path); !strings.Contains(string(b), want) {
+			t.Errorf("%s lacks %q:\n%s", goos, want, b)
+		}
+	}
+}
+
+func TestAPercentInTheExeIsEscapedForSystemd(t *testing.T) {
+	if got := service("/a%b/matchblox", ""); !strings.Contains(got, "ExecStart=/a%%b/matchblox serve\n") {
+		t.Fatal(got)
 	}
 }

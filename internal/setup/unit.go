@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -23,6 +24,8 @@ type unit struct {
 	path, text string
 	argv       []string
 	advice     string // a line for the preview, "" for none
+	// before runs first and its error is ignored (an agent not loaded yet).
+	before []string
 }
 
 // unitFor is the user unit for e.GOOS: a launchd agent on macOS, a systemd
@@ -40,25 +43,32 @@ func unitFor(e Env) (u unit, ok bool) {
 	switch e.GOOS {
 	case "darwin":
 		path := filepath.Join(e.Home, "Library", "LaunchAgents", plistName)
-		return unit{path: path, text: plist(exe, filepath.Join(e.StateDir, "serve.log")),
-			argv: []string{"launchctl", "bootstrap", "gui/" + strconv.Itoa(e.UID), path}}, true
+		return unit{path: path, text: plist(exe, filepath.Join(e.StateDir, "serve.log"), e.Getenv("PATH")),
+			before: []string{"launchctl", "bootout", "gui/" + strconv.Itoa(e.UID) + "/com.blox.matchblox"},
+			argv:   []string{"launchctl", "bootstrap", "gui/" + strconv.Itoa(e.UID), path}}, true
 	case "linux":
 		dir := e.Getenv("XDG_CONFIG_HOME")
 		if dir == "" {
 			dir = filepath.Join(e.Home, ".config")
 		}
-		return unit{path: filepath.Join(dir, "systemd", "user", serviceName), text: service(exe),
+		return unit{path: filepath.Join(dir, "systemd", "user", serviceName), text: service(exe, e.Getenv("PATH")),
 			argv:   []string{"systemctl", "--user", "enable", "--now", serviceName},
 			advice: "# to keep it running after you log out: loginctl enable-linger"}, true
 	}
 	return unit{}, false
 }
 
-func plist(exe, log string) string {
+// The unit sets PATH to the one of the process that opens the door: launchd
+// and systemd start with a minimal one, and serve runs tmux and claude.
+func plist(exe, log, path string) string {
 	esc := func(s string) string {
 		var b bytes.Buffer
 		_ = xml.EscapeText(&b, []byte(s))
 		return b.String()
+	}
+	env := ""
+	if path != "" {
+		env = "\t<key>EnvironmentVariables</key>\n\t<dict>\n\t\t<key>PATH</key>\n\t\t<string>" + esc(path) + "</string>\n\t</dict>\n"
 	}
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -75,17 +85,22 @@ func plist(exe, log string) string {
 	<true/>
 	<key>KeepAlive</key>
 	<true/>
-	<key>StandardErrorPath</key>
+` + env + `	<key>StandardErrorPath</key>
 	<string>` + esc(log) + `</string>
 </dict>
 </plist>
 `
 }
 
-func service(exe string) string {
+func service(exe, path string) string {
 	// systemd splits ExecStart on spaces: quote a path that has one.
 	if strings.ContainsAny(exe, " \t") {
 		exe = `"` + strings.ReplaceAll(exe, `"`, `\"`) + `"`
+	}
+	exe = strings.ReplaceAll(exe, "%", "%%") // systemd specifiers
+	env := ""
+	if path != "" {
+		env = "Environment=\"PATH=" + strings.NewReplacer("%", "%%", `"`, `\"`).Replace(path) + "\"\n"
 	}
 	return `[Unit]
 Description=matchblox serve: the phone buzzes with no console open
@@ -93,7 +108,7 @@ Description=matchblox serve: the phone buzzes with no console open
 [Service]
 ExecStart=` + exe + ` serve
 Restart=on-failure
-
+` + env + `
 [Install]
 WantedBy=default.target
 `
@@ -133,6 +148,10 @@ func openKeepRunning(e Env, seen string) error {
 	if !ok {
 		return fmt.Errorf("no user unit on %s", e.GOOS)
 	}
+	target, old, _, err := read(u.path)
+	if err != nil {
+		return err
+	}
 	if _, err := edit(u.path, seen, func([]byte) ([]byte, error) { return []byte(u.text), nil }); err != nil {
 		return err
 	}
@@ -146,5 +165,17 @@ func openKeepRunning(e Env, seen string) error {
 			return nil
 		}
 	}
-	return run(u.argv)
+	if u.before != nil {
+		_ = run(u.before) // a stale agent leaves, so the new file is the one that loads
+	}
+	if err := run(u.argv); err != nil {
+		// The service did not start: put the file back, so the door stays open.
+		if old == nil {
+			_ = os.Remove(target)
+		} else {
+			_ = replace(target, old, 0o600)
+		}
+		return err
+	}
+	return nil
 }
