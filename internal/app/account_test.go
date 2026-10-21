@@ -73,7 +73,8 @@ func TestTheDetailNamesTheAccountWithItsProviderMark(t *testing.T) {
 	} {
 		m := demoSessions(t, 160)
 		for _, s := range m.snap.Sessions {
-			if s.Name == name {
+			// Codex and OpenCode are named as their tmux windows.
+			if s.Name == name || s.Name != "hearth-api" && s.Agent == name {
 				choose(&m, s.PID)
 			}
 		}
@@ -86,10 +87,17 @@ func TestTheDetailNamesTheAccountWithItsProviderMark(t *testing.T) {
 		}
 	}
 	// Context use for every agent, on its row.
-	out := demoSessions(t, 160).render()
-	for name, want := range map[string]string{"codex": "55%", "opencode": "6%"} {
-		if l := rowOf(out, name); !strings.Contains(l, want) {
-			t.Errorf("%s: %q lacks %s", name, l, want)
+	m := demoSessions(t, 160)
+	out := m.render()
+	for agent, want := range map[string]string{"codex": "55%", "opencode": "6%"} {
+		name := ""
+		for _, s := range m.snap.Sessions {
+			if s.Agent == agent {
+				name = s.Name
+			}
+		}
+		if l := rowOf(out, name); name == "" || !strings.Contains(l, want) {
+			t.Errorf("%s (%q): %q lacks %s", agent, name, l, want)
 		}
 	}
 }

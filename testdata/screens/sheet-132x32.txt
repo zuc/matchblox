@@ -6,8 +6,8 @@
  ╿ ember-billing            done       4m   32%  ▲ clear      #4552 ●━●━◉┄○┄○ │ │ done, waits for you · 9m · hearth:3.1 · /work/spa…
  ╿ flint-auth               asks       2m   41%  ▲ clear      #4545 ●━✕┄○┄○┄○ │
  ╿ kindle-web               asks       1m   56%  ▲ clear                      │ CLAUDE SAID
- ╿ codex                    done       0s   55%  ▲ clear                      │ I rewrote the quick start and the install page.
- ╿ opencode                 done       0s    6%  ▲ clear                      │
+ ╿ cinder-ci                done       0s   55%  ▲ clear                      │ I rewrote the quick start and the install page.
+ ╿ wick-mobile              done       0s    6%  ▲ clear                      │
  WORKING · 1                                                                  │ context  ▰▰▰▰▰▰▰▰▰▱ 88%
  ✦ hearth-api               busy   ╭─ ☾ Night ──────────────────────────────────────────────────╮▰▰ 100%  docs for the 1.0 release
                                    │ How should I run tonight?                                  │●━●━●━●  live
@@ -17,10 +17,10 @@
  ▲ The week runs short: compact spa│ gos ✓ merges  ○ releases  ○ deploys  ○ kills  off asks you │00k tokens · +0k in 30 min · ✻
  ○ Clear spark-docs (%3)           │ ways merge-order  priority  release-train  triage          │· Max · pid 1400 · 1 process ·
  ○ Clear kindle-web (%5)           ╰─ ⏎ send ─ tab chips ─ esc ─────────────────────────────────╯
- ○ Clear codex (%6)                                                           │
+ ○ Clear cinder-ci (%6)                                                       │
  ○ Clear flint-auth (%2)                                                      │ a answer   ⏎ open it
  ○ Clear ember-billing (%8)                                                   │
- ○ Clear opencode (%7)                                                        │
+ ○ Clear wick-mobile (%7)                                                     │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  USAGE                                                                        │ MACHINE                                    16 cores
  ✻ Max    5h   ▰▰▰▰▰▰▰▱ 84%  · Fri 01:20                                      │ cpu  ▁ 0%   load 6.2

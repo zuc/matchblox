@@ -6,8 +6,8 @@
  ╿ ember-billing            done       4m   32%  ▲ clear      #4552 ●━●━◉┄○┄○ ││ One choice is yours before I wire the rotation:   │
 ▌╿ flint-auth               asks       2m   41%  ▲ clear      #4545 ●━✕┄○┄○┄○ ││ what should a refresh do with the token it was    │
  ╿ kindle-web               asks       1m   56%  ▲ clear                      ││ given?                                            │
- ╿ codex                    done       0s   55%  ▲ clear                      ││                                                   │
- ╿ opencode                 done       0s    6%  ▲ clear                      ││ Should a refresh also rotate the token?           │
+ ╿ cinder-ci                done       0s   55%  ▲ clear                      ││                                                   │
+ ╿ wick-mobile              done       0s    6%  ▲ clear                      ││ Should a refresh also rotate the token?           │
  WORKING · 1                                                                  ││ › 1 Rotate it  the old one stops at once          │
  ✦ hearth-api               busy            79%  ▰▰▰▱▱ 60%    #4551 ●━◉┄○┄○┄○ ││   2 Rotate, keep the old one a minute             │
                                                                               ││   3 Keep the token                                │
@@ -17,10 +17,10 @@
  ▲ The week runs short: compact spark-docs                                    ││                                                   │
  ○ Clear spark-docs (%3)                                                      ││                                                   │
  ○ Clear kindle-web (%5)                                                      ││                                                   │
- ○ Clear codex (%6)                                                           ││                                                   │
+ ○ Clear cinder-ci (%6)                                                       ││                                                   │
  ○ Clear flint-auth (%2)                                                      ││                                                   │
  ○ Clear ember-billing (%8)                                                   ││                                                   │
- ○ Clear opencode (%7)                                                        │╰─ ⏎ question 2 ─ ← prev  3/7  next → ─ esc ────────╯
+ ○ Clear wick-mobile (%7)                                                     │╰─ ⏎ question 2 ─ ← prev  3/7  next → ─ esc ────────╯
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
  USAGE                                                                        │ MACHINE                                    16 cores
  ✻ Max    5h   ▰▰▰▰▰▰▰▱ 84%  · Fri 01:20                                      │ cpu  ▁ 0%   load 6.2

@@ -74,8 +74,8 @@ func TestEveryAgentInAPaneIsASession(t *testing.T) {
 	snap := smp.Sample()
 	got := byPane(snap)
 	for pane, name := range map[string]string{"%10": "codex", "%11": "opencode", "%12": "cursor-agent", "%13": "gemini", "%14": "aider", "%15": "mybot"} {
-		if got[pane].Name != name {
-			t.Errorf("pane %s: name %q, want %q", pane, got[pane].Name, name)
+		if got[pane].Agent != name {
+			t.Errorf("pane %s: agent %q, want %q", pane, got[pane].Agent, name)
 		}
 	}
 	for _, pane := range []string{"%16", "%17"} {

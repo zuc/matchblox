@@ -12,8 +12,8 @@
  ╿ ember-billing         done      4m   32%
  ╿ flint-auth            asks      2m   41%
  ╿ kindle-web            asks      1m   56%
- ╿ codex                 done      0s   55%
- ╿ opencode              done      0s    6%
+ ╿ cinder-ci             done      0s   55%
+ ╿ wick-mobile           done      0s    6%
  WORKING · 1
  ✦ hearth-api            busy           79%
 

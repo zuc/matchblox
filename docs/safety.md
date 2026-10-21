@@ -23,6 +23,12 @@ command.
 - matchblox runs as you, at the lowest CPU priority. It opens no network
   port. The service socket is in a directory that only you can open.
 - It sends no pane text to a model.
+- It reads no agent's login token, with one exception you turn on:
+  `[limits] cursor_usage = true` reads the token Cursor's CLI keeps in the
+  macOS Keychain (`cursor-access-token`), every 5 minutes while a Cursor
+  session runs, and sends it to Cursor's API only, for the plan usage
+  Cursor's own `/usage` shows. It keeps the token for that one call, and
+  never writes or shows it.
 - A setup step that edits a file (`~/.claude/settings.json`,
   `~/.tmux.conf`) shows the exact change first and keeps a backup.
 - A remote host's stream uses its own key. That key can start only the

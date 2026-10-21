@@ -88,7 +88,7 @@ func (r *httpRelay) Send(ctx context.Context, e Event) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return &RelayError{Code: resp.StatusCode}

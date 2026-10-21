@@ -22,10 +22,12 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
 	"slices"
@@ -768,7 +770,27 @@ func newSampler(cfg config.Config, root string) *sample.Sampler {
 	smp.ProcEvery = 5 * cfg.Interval.Duration
 	smp.OwnEntries = true
 	smp.LimitsDir = filepath.Dir(state.Path())
+	if cfg.Limits.CursorUsage && runtime.GOOS == "darwin" {
+		smp.CursorUsage = cursorUsage()
+	}
 	return smp
+}
+
+// cursorUsage reads Cursor's plan usage every 5 minutes, with the login
+// token Cursor's CLI keeps in the macOS Keychain. The token is read for each
+// call and sent to Cursor's API only.
+func cursorUsage() *limits.CursorUsage {
+	client := &http.Client{Timeout: 10 * time.Second}
+	return &limits.CursorUsage{
+		Every: 5 * time.Minute,
+		Token: func(ctx context.Context) (string, error) {
+			out, err := exec.CommandContext(ctx, "security", "find-generic-password", "-s", "cursor-access-token", "-w").Output()
+			return strings.TrimSpace(string(out)), err
+		},
+		Fetch: func(ctx context.Context, token string) ([]byte, error) {
+			return limits.FetchCursorUsage(ctx, client, limits.CursorAPI, token)
+		},
+	}
 }
 
 // stokerPaneGone warns of a config that still names the stoker's pane.

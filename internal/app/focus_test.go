@@ -245,7 +245,7 @@ func TestFocusOfAGoneSessionDropsAConfirm(t *testing.T) {
 	if nm := next.(Model); nm.tab != tabSessions || nm.pending != nil {
 		t.Fatalf("tab %d pending %+v: want Sessions and no confirm", nm.tab, nm.pending)
 	}
-	next, cmd := key(next, "y")
+	_, cmd := key(next, "y")
 	drain(cmd)
 	if acts := f.acts(); len(acts) != 0 {
 		t.Fatalf("y ran %+v", acts)

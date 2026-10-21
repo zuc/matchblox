@@ -40,6 +40,20 @@ func TestScreen(t *testing.T) {
     Run Everything (shift+tab)
     Skip & tell the agent what to do instead (esc or n)
 `, "Run this command?", Permits},
+		{"cursor trust prompt", `
+  ╭──────────────────────────────────────────────────────────────────────────╮
+  │                                                                          │
+  │  Do you trust the contents of this directory?                            │
+  │                                                                          │
+  │    /work/app                                                             │
+  │                                                                          │
+  │  ▶ [a] Trust this workspace                                              │
+  │    [q] Quit                                                              │
+  │                                                                          │
+  │  Use arrow keys to navigate, Enter to select, or press the key shown     │
+  │                                                                          │
+  ╰──────────────────────────────────────────────────────────────────────────╯
+`, "Do you trust the contents of this directory?", Permits},
 		{"cursor at rest", `
   Done. second.txt was created.
  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄

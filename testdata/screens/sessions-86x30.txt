@@ -6,8 +6,8 @@
  ╿ ember-billing      done       4m   32% │ │ done, waits for you · 9m · hearth:3.1 ·…
  ╿ flint-auth         asks       2m   41% │
  ╿ kindle-web         asks       1m   56% │ CLAUDE SAID
- ╿ codex              done       0s   55% │ I rewrote the quick start and the
- ╿ opencode           done       0s    6% │ install page.
+ ╿ cinder-ci          done       0s   55% │ I rewrote the quick start and the
+ ╿ wick-mobile        done       0s    6% │ install page.
  WORKING · 1                              │
  ✦ hearth-api         busy            79% │ context  ▰▰▰▰▰▰▰▰▰▱ 88%
                                           │ plan     ▰▰▰▰▰▰▰▰▰▰ 100%  docs for the 1.…
@@ -17,10 +17,10 @@
  ▲ The week runs short: compact spark-docs│ why      clear: idle 9m (clear after 0s)
  ○ Clear spark-docs (%3)                  │ sonnet · 176k / 200k tokens · +0k in 30
  ○ Clear kindle-web (%5)                  │ min · ✻ team@example.com · Max · pid 1400
- ○ Clear codex (%6)                       │ · 1 process · started 3h20m ago
+ ○ Clear cinder-ci (%6)                   │ · 1 process · started 3h20m ago
  ○ Clear flint-auth (%2)                  │
  ○ Clear ember-billing (%8)               │ a answer   ⏎ open it
- ○ Clear opencode (%7)                    │
+ ○ Clear wick-mobile (%7)                 │
                                           │
                                           │
                                           │

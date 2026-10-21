@@ -6,8 +6,8 @@
  ╿ ember-billing                 done       4m   32% ││ One choice is yours before I wire the rotation:   │
 ▌╿ flint-auth                    asks       2m   41% ││ what should a refresh do with the token it was    │
  ╿ kindle-web                    asks       1m   56% ││ given?                                            │
- ╿ codex                         done       0s   55% ││                                                   │
- ╿ opencode                      done       0s    6% ││ Should a refresh also rotate the token?           │
+ ╿ cinder-ci                     done       0s   55% ││                                                   │
+ ╿ wick-mobile                   done       0s    6% ││ Should a refresh also rotate the token?           │
  WORKING · 1                                         ││ › 1 Rotate it  the old one stops at once          │
  ✦ hearth-api                    busy            79% ││   2 Rotate, keep the old one a minute             │
                                                      ││   3 Keep the token                                │
@@ -17,10 +17,10 @@
  ▲ The week runs short: compact spark-docs           ││                                                   │
  ○ Clear spark-docs (%3)                             ││                                                   │
  ○ Clear kindle-web (%5)                             ││                                                   │
- ○ Clear codex (%6)                                  ││                                                   │
+ ○ Clear cinder-ci (%6)                              ││                                                   │
  ○ Clear flint-auth (%2)                             ││                                                   │
  ○ Clear ember-billing (%8)                          ││                                                   │
- ○ Clear opencode (%7)                               ││                                                   │
+ ○ Clear wick-mobile (%7)                            ││                                                   │
                                                      ││                                                   │
                                                      ││                                                   │
                                                      ││                                                   │

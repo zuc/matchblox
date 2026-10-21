@@ -64,6 +64,9 @@ type Ships struct {
 type Limits struct {
 	QuietHours string   `toml:"quiet_hours"` // "23:00-08:00": hours you do not usually work
 	QuietDays  []string `toml:"quiet_days"`  // ["Sat", "Sun"]
+	// CursorUsage reads Cursor's plan usage from Cursor's API, with the
+	// login token Cursor's CLI keeps in the macOS Keychain. Off by default.
+	CursorUsage bool `toml:"cursor_usage"`
 	// Quiet is QuietHours and QuietDays, read by Load.
 	Quiet limits.Quiet `toml:"-"`
 }

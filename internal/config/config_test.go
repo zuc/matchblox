@@ -162,3 +162,15 @@ func TestQuietHoursShapeTheForecast(t *testing.T) {
 		t.Fatalf("bad quiet hours: %v", err)
 	}
 }
+
+// TestCursorUsageIsOffUnlessAsked: reading Cursor's plan usage reads its
+// login token: only a config that says so turns it on.
+func TestCursorUsageIsOffUnlessAsked(t *testing.T) {
+	c, err := Load(filepath.Join(t.TempDir(), "none.toml"))
+	if err != nil || c.Limits.CursorUsage {
+		t.Fatalf("default: %v %v, want off", c.Limits.CursorUsage, err)
+	}
+	if c, err = Load(write(t, "[limits]\ncursor_usage = true\n")); err != nil || !c.Limits.CursorUsage {
+		t.Fatalf("on: %v %v", c.Limits.CursorUsage, err)
+	}
+}

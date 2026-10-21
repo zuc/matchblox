@@ -71,8 +71,8 @@ func cursorsAgent(path string) bool {
 
 // launchArgv is the agent's command, run as bin: Claude Code takes the
 // session's name (--name, which its /rename changes later) and the first
-// message as its prompt; Codex and Cursor take the prompt; OpenCode takes
-// it with --prompt.
+// message as its prompt; Codex takes the prompt; Cursor takes it after
+// --trust; OpenCode takes it with --prompt.
 func launchArgv(bin, agent, name, first string) []string {
 	argv := []string{bin}
 	switch agent {
@@ -82,6 +82,10 @@ func launchArgv(bin, agent, name, first string) []string {
 		if first != "" {
 			argv = append(argv, "--prompt")
 		}
+	case sample.CursorAgent:
+		// The builder chose the directory: Cursor does not ask again
+		// whether to trust it.
+		argv = append(argv, "--trust")
 	}
 	if first != "" {
 		argv = append(argv, first)

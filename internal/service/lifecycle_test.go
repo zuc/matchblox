@@ -445,7 +445,7 @@ func TestNewStartsCursor(t *testing.T) {
 		if res.Err != "" || len(*ran) != 1 {
 			t.Fatalf("%s: err %q ran %q", agent, res.Err, *ran)
 		}
-		if got := strings.Join((*ran)[0], " "); !strings.HasSuffix(got, "-c "+dir+" cursor-agent fix the build") {
+		if got := strings.Join((*ran)[0], " "); !strings.HasSuffix(got, "-c "+dir+" cursor-agent --trust fix the build") {
 			t.Errorf("%s: ran %q", agent, got)
 		}
 	}
@@ -469,7 +469,7 @@ func TestNewStartsCursorByAgentWhenOnlyThatIsInstalled(t *testing.T) {
 	if res := s.act(t.Context(), newAct(t, proto.NewSession{Where: dir, Agent: "cursor-agent", Name: "fresh", First: "fix the build"})); res.Err != "" {
 		t.Fatal(res.Err)
 	}
-	if got := strings.Join((*ran)[0], " "); !strings.HasSuffix(got, "-c "+dir+" agent fix the build") {
+	if got := strings.Join((*ran)[0], " "); !strings.HasSuffix(got, "-c "+dir+" agent --trust fix the build") {
 		t.Errorf("ran %q", got)
 	}
 	if !slices.Contains(s.startable(), "cursor-agent") {

@@ -12,8 +12,8 @@
     ▲ clear                a answer  ⏎ open
 ────────────────────────────────────────────
  ╿ kindle-web            asks      1m   56%
- ╿ codex                 done      0s   55%
- ╿ opencode              done      0s    6%
+ ╿ cinder-ci             done      0s   55%
+ ╿ wick-mobile           done      0s    6%
  WORKING · 1
 ╭─ flint-auth asks · 1 of 2 ───────────────╮
 │ The refresh endpoint is in and its tests │

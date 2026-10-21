@@ -59,6 +59,7 @@ max_steps = 60           # the most messages that agent sends in one run
 [limits]                 # the 5-hour window and the week of each account
 quiet_hours = "23:00-08:00"  # hours you do not usually work, in this machine's time zone: the forecast counts them as a tenth
 quiet_days = ["Sat", "Sun"]  # days you do not usually work
+cursor_usage = false     # true: read Cursor's plan usage from its API with the login token Cursor's CLI keeps in the macOS Keychain
 
 [push]                   # the buzz and the island on the phones that registered
 relay = "https://matchblox.sh"  # the relay that hands them to Apple; it stores nothing

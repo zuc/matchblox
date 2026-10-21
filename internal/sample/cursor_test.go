@@ -1,9 +1,11 @@
 package sample
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,6 +80,60 @@ func TestCursorWithoutItsStatusLineIsNotMeasured(t *testing.T) {
 		s := byPane(smp.Sample())["%20"]
 		if s.Context != "unmeasured" || s.Tokens != 0 {
 			t.Errorf("%s: context %q tokens %d, want unmeasured", name, s.Context, s.Tokens)
+		}
+	}
+}
+
+func cursorLimits(snap Snapshot) *limits.Account {
+	for i, a := range snap.Limits {
+		if a.Provider == "cursor" {
+			return &snap.Limits[i]
+		}
+	}
+	return nil
+}
+
+// TestCursorUsageFillsItsLine: with Cursor's usage read, its account's line
+// in USAGE is the month of its plan; without, it says how to read it.
+func TestCursorUsageFillsItsLine(t *testing.T) {
+	smp, _ := cursorFixture(t, fixtureNow.Add(-time.Minute))
+	if a := cursorLimits(smp.Sample()); a == nil || a.State != limits.Unmeasured || !strings.Contains(a.Fix, "cursor_usage") {
+		t.Errorf("off: %+v, want not measured with how to turn it on", a)
+	}
+	smp.CursorUsage = &limits.CursorUsage{
+		Every: time.Hour,
+		Token: func(context.Context) (string, error) { return "tok", nil },
+		Fetch: func(context.Context, string) ([]byte, error) {
+			return []byte(`{"billingCycleStart":"1790000000000","billingCycleEnd":"1792678400000","planUsage":{"totalPercentUsed":25}}`), nil
+		},
+	}
+	smp.Sample()
+	smp.CursorUsage.Wait()
+	a := cursorLimits(smp.Sample())
+	if a == nil || a.Account != "you@example.com · Acme" || len(a.Windows) != 1 || a.Windows[0].UsedPct != 25 {
+		t.Errorf("on: %+v, want the month's 25%%", a)
+	}
+}
+
+// TestAnAgentWithoutANameIsCalledAsItsTmuxWindow: an agent that keeps no
+// name of its own (Cursor, Codex) is named as its window, which a rename
+// sets; a window tmux named after the command gives way to the session.
+func TestAnAgentWithoutANameIsCalledAsItsTmuxWindow(t *testing.T) {
+	root := copyFixture(t)
+	for i, p := range []struct{ target, window string }{
+		{"pintelektdev:1.1", "pintelektdev"}, // renamed by matchblox, or tmux
+		{"web:1.1", "node"},                  // tmux's automatic name
+	} {
+		pid, pane := 950+i, "%"+strconv.Itoa(40+i)
+		addProc(t, root, pid, 1, "node", []string{"/home/user/.local/bin/agent", "--use-system-ca", cursorJS}, pane)
+		addPane(t, root, pane+"\t"+p.target+"\t"+p.window+"\t"+strconv.Itoa(pid)+"\tnode\t/work")
+	}
+	smp := newFixtureSampler(root)
+	smp.Agents = []string{"claude", CursorAgent}
+	got := byPane(smp.Sample())
+	for pane, want := range map[string]string{"%40": "pintelektdev", "%41": "web"} {
+		if got[pane].Name != want {
+			t.Errorf("pane %s: name %q, want %q", pane, got[pane].Name, want)
 		}
 	}
 }

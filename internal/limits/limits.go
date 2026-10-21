@@ -157,7 +157,7 @@ func fixFor(source, account string, read bool) string {
 	case source == SourceCodex:
 		return "Codex reports them after its next turn"
 	case source == SourceCursor:
-		return "Cursor's plan usage is not read yet"
+		return "set cursor_usage = true under [limits] in config.toml"
 	default:
 		return "OpenCode keeps no limits"
 	}

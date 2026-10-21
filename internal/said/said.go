@@ -37,8 +37,8 @@ var (
 	// permitsRe is an approval prompt, in the agents' own words: OpenCode's
 	// permission box and its choices, aider's (Y)es/(N)o, a [y/n], Codex's
 	// confirm hint, a numbered Yes choice (Claude Code, Codex), Cursor's
-	// Run (once) (y).
-	permitsRe = regexp.MustCompile(`(?i)^permission required\b|^allow once\b|\(y\)es/\(n\)o|[\[(]y/n[\])]|press enter to confirm|^\d\.\s+yes\b|\brun \(once\) \(y\)`)
+	// Run (once) (y) and its workspace trust prompt.
+	permitsRe = regexp.MustCompile(`(?i)^permission required\b|^allow once\b|\(y\)es/\(n\)o|[\[(]y/n[\])]|press enter to confirm|^\d\.\s+yes\b|\brun \(once\) \(y\)|\[a\] trust this workspace`)
 	// midRe is a question with a sentence after it.
 	midRe = regexp.MustCompile(`\pL\?\s+\pL`)
 	// hintRe is a line of key hints or a footer, never what the agent said.

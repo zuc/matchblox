@@ -6,8 +6,8 @@
  ╿ ember-billing                           done       4m   32% │ │ done, waits for you · 9m · hearth:3.…
  ╿ flint-auth                              asks       2m   41% │
  ╿ kindle-web                              asks       1m   56% │ CLAUDE SAID
- ╿ codex                                   done       0s   55% │ I rewrote the quick start and the
- ╿ opencode                                done       0s    6% │ install page.
+ ╿ cinder-ci                               done       0s   55% │ I rewrote the quick start and the
+ ╿ wick-mobile                             done       0s    6% │ install page.
  WORKING · 1                                                   │
  ✦ hearth-api                              busy            79% │ context  ▰▰▰▰▰▰▰▰▰▱ 88%
                                                                │ plan     ▰▰▰▰▰▰▰▰▰▰ 100%  docs for the…
@@ -17,10 +17,10 @@
  ▲ The week runs shor│ branch   feat/88-rate-limits                               │le 9m (clear after 0…
  ○ Clear spark-docs (│ name     spark-docs-feat-88-rate-limits                    │0k tokens · +0k in
  ○ Clear kindle-web (│ agent    ● claude  ○ codex  ○ opencode                     │ample.com · Max ·
- ○ Clear codex (%6)  │ first  › fix the flaky ships test▏                         │ss · started 3h20m
+ ○ Clear cinder-ci (%│ first  › fix the flaky ships test▏                         │ss · started 3h20m
  ○ Clear flint-auth (╰─ ⏎ start ─ tab next ─ esc ─────────────────────────────────╯
  ○ Clear ember-billing (%8)                                    │
- ○ Clear opencode (%7)                                         │ a answer   ⏎ open it
+ ○ Clear wick-mobile (%7)                                      │ a answer   ⏎ open it
 ────────────────────────────────────────────────────────────────────────────────────────────────────────
  USAGE                                                         │ MACHINE                       16 cores
  ✻ Max    5h   ▰▰▰▰▰▰▰▱ 84%  · Fri 01:20                       │ cpu  ▁ 0%   load 6.2

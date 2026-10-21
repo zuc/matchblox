@@ -18,7 +18,7 @@ tmux new -s app claude
 tmux new -s api codex
 ```
 ```
-╿ asks   1m    codex      api:1.1   █████░░░░░  55%   ❋ you@example.com · Plus
+╿ asks   1m    api        api:1.1   █████░░░░░  55%   ❋ you@example.com · Plus
 ```
 
 **OpenCode**
@@ -27,7 +27,7 @@ tmux new -s api codex
 tmux new -s web opencode
 ```
 ```
-✦ busy         opencode   web:1.1   ███░░░░░░░  32%   ▣ API key
+✦ busy         web        web:1.1   ███░░░░░░░  32%   ▣ API key
 ```
 
 **Cursor**
@@ -36,7 +36,7 @@ tmux new -s web opencode
 tmux new -s app agent
 ```
 ```
-╿ asks   1m    cursor-agent  app:1.1   █░░░░░░░░░   6%   ⬢ you@example.com · Acme
+╿ asks   1m    app        app:1.1   █░░░░░░░░░   6%   ⬢ you@example.com · Acme
 ```
 
 Cursor's CLI counts whether you start it as `agent` or `cursor-agent`. The
@@ -48,11 +48,15 @@ first run lists it in `agents` as `cursor-agent`.
 tmux new -s docs aider
 ```
 ```
-╿ done   4m    aider      docs:1.1        —
+╿ done   4m    docs       docs:1.1        —
 ```
 
 The first run writes the agents it finds to `agents` in the
 [config](config.md). Add any other agent there by its command.
+
+An agent that keeps no name of its own (all but Claude Code) is named as
+its tmux window, which `r` renames, or as its tmux session while tmux names
+the window after the command.
 
 ## Context use
 
@@ -85,8 +89,11 @@ On a wide screen, Sessions shows the account of each session: the
 provider's mark, then the email and plan, or "API key". Only those two
 fields are read from the agent's auth files; no token reaches the console.
 Cursor's is the email and team its CLI keeps in `~/.cursor/cli-config.json`
-(`⬢ you@example.com · Acme`), and USAGE lists the account; its plan usage
-is not read yet.
+(`⬢ you@example.com · Acme`), and USAGE lists the account. Its plan usage,
+the share of the month's included usage as Cursor's `/usage` shows it,
+needs `cursor_usage = true` under `[limits]`: matchblox then asks Cursor's
+API with the login token Cursor's CLI keeps in the macOS Keychain (see
+[Safety](safety.md)).
 
 ## How an agent tells that it waits
 

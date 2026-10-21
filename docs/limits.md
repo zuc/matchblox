@@ -22,13 +22,13 @@ What does not work yet, and what to do until it does.
 | Context use for Claude Code, Codex, OpenCode and Cursor only | Other agents show "not measured", and still show in Sessions. Cursor's needs the door "Show Cursor's context". |
 | A Claude model that matchblox does not know has no window | Without the status line, a new model shows "not measured" until matchblox knows it. Open the door "Show your limits" in Sessions: the status line then gives each session its window. Or set the model in `[sessions.windows]`. |
 | Waits of agents other than Claude Code and Cursor come from their pane | They wait for you in Sessions once their pane is idle and its last lines ask. Cursor's approval menu is read from its pane too. |
-| Plan limits for Claude Code and Codex only | OpenCode's and Cursor's usage show "not measured". Cursor reports its plan usage only to its own login, from its servers. |
+| Plan limits for Claude Code, Codex and Cursor only | OpenCode's usage shows "not measured". Cursor's needs `[limits] cursor_usage = true`, and macOS: it is read with the token in the Keychain. |
 | Ships reads GitHub only | A pull request on another forge does not show. |
 | No week of Opus or Sonnet in usage | Claude Code's status line gives the 5-hour window and the week only. |
 | tmux only | Run your agents in tmux. |
 | New session starts Claude Code, Codex, OpenCode and Cursor only | Start another agent in tmux yourself: Sessions shows it all the same. |
 | New session finds an agent on the service's `PATH` | An agent that is a shell alias, or on a `PATH` only your shell sets, is not offered. Put it on the `PATH` the service runs with, or start it yourself. |
-| Rename names a Codex, OpenCode or Cursor agent in tmux only | They keep no name of their own. Claude Code takes `/rename` at rest, so a busy session is renamed when it rests. |
+| Rename names a Codex, OpenCode or Cursor agent in tmux only | They keep no name of their own: Sessions shows them by their tmux window. Claude Code takes `/rename` at rest, so a busy session is renamed when it rests. |
 | No native Windows | Use Linux or macOS. |
 | One host on a screen | `esc` goes back to Hosts. |
 

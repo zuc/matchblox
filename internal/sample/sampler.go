@@ -261,6 +261,9 @@ type Sampler struct {
 	// LimitsDir is where the status-line tap keeps each Claude Code config
 	// directory's limits. Empty: none are read.
 	LimitsDir string
+	// CursorUsage reads Cursor's plan usage from its API ([limits]
+	// cursor_usage); nil: not read.
+	CursorUsage *limits.CursorUsage
 
 	agents   *agentReader
 	panes    map[procKey]string // environ is read once per process
@@ -645,7 +648,14 @@ func (s *Sampler) sampleSessions(snap *Snapshot, panes []Pane, procs map[int]pro
 					sess.Model = label(r.Model)
 				}
 			}
-			lims.add(sess, limits.SourceCursor, nil)
+			var usage *limits.Reading
+			if s.CursorUsage != nil {
+				usage = s.CursorUsage.Reading(now)
+			}
+			lims.add(sess, limits.SourceCursor, usage)
+			if s.CursorUsage != nil {
+				lims.fix(sess, "Cursor's API has not answered yet")
+			}
 		case "opencode":
 			sess.Context = "unmeasured"
 			if opencodeIn[sess.Cwd] != 1 {
@@ -671,7 +681,7 @@ func (s *Sampler) sampleSessions(snap *Snapshot, panes []Pane, procs map[int]pro
 			sess.Context = "unmeasured"
 		}
 		if sess.Name == "" {
-			sess.Name = agent
+			sess.Name = tmuxName(pane, agent)
 		}
 		if sess.SessionID == "" && paneID != "" {
 			fromPane = append(fromPane, len(snap.Sessions))
@@ -771,6 +781,19 @@ func (s *Sampler) agentName(pid int, p procfs.Proc) string {
 }
 
 type agentRef struct{ comm, name string }
+
+// tmuxName names an agent that keeps no name of its own as its tmux window,
+// which a rename sets; a window tmux named after the command it runs gives
+// way to the session's name, and no pane to the agent's.
+func tmuxName(p Pane, agent string) string {
+	if w := p.Window; w != "" && w != p.Command && w != filepath.Base(p.Command) && w != agent {
+		return w
+	}
+	if session, _, ok := strings.Cut(p.Target, ":"); ok && session != "" {
+		return session
+	}
+	return agent
+}
 
 // CursorAgent is Cursor's CLI, by the command its installer adds beside
 // `agent`.

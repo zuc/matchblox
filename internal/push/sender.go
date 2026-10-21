@@ -85,7 +85,7 @@ type Sender struct {
 // dir: starts.json there keeps when each island started, so a restart of the
 // service does not start a second one.
 func NewSender(r Relay, p Phones, n *Numbers, dir, hostFP string, now func() time.Time) *Sender {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // Close calls cancel
 	s := &Sender{relay: r, phones: p, n: n, dir: dir, hostFP: hostFP, now: now,
 		in: make(chan state.Doc, 1), ctx: ctx, cancel: cancel, done: make(chan struct{}),
 		started: loadStarts(dir), tried: map[string]time.Time{}, dead: map[string]bool{}, follows: map[string]string{}}
@@ -258,7 +258,7 @@ func (s *Sender) buzz(doc state.Doc, regs []Registration, now time.Time) {
 		b.APS.Alert.Body, b.APS.Sound, b.APS.Mutable = "matchblox", "default", 1
 		b.Buzz = Buzz{Host: Host8(s.hostFP), N: num, Sealed: sealed}
 		pl, _ := json.Marshal(b)
-		s.send(r, Event{Target: r.DeviceToken, Kind: "device", PushType: "alert", Priority: 10, Payload: pl})
+		_ = s.send(r, Event{Target: r.DeviceToken, Kind: "device", PushType: "alert", Priority: 10, Payload: pl})
 	}
 }
 
@@ -415,10 +415,9 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 		return
 	}
 	s.failed = nil
-	switch {
-	case s.last == nil:
+	if s.last == nil {
 		s.pctAt, s.usageAt = now, now
-	default:
+	} else {
 		if pctOf(s.last) != pctOf(&cs) {
 			s.pctAt = now
 		}

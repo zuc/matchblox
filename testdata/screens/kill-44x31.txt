@@ -12,8 +12,8 @@
  ╿ ember-billing         done      4m   32%
  ╿ flint-auth            asks      2m   41%
  ╿ kindle-web            asks      1m   56%
- ╿ codex                 done      0s   55%
- ╿ opencode              done      0s    6%
+ ╿ cinder-ci             done      0s   55%
+ ╿ wick-mobile           done      0s    6%
  WORKING · 1
  ✦ hearth-api            busy           79%
 
@@ -23,9 +23,9 @@
  ▲ The week runs short: compact spark-docs
  ○ Clear spark-docs (%3)
  ○ Clear kindle-web (%5)
- ○ Clear codex (%6)
+ ○ Clear cinder-ci (%6)
  ○ Clear flint-auth (%2)
  ○ Clear ember-billing (%8)
- ○ Clear opencode (%7)
+ ○ Clear wick-mobile (%7)
 ────────────────────────────────────────────
  RUN kill spark-docs: tmux kill-pane -t %3,…
