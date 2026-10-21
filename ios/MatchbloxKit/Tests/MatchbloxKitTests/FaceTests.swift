@@ -12,26 +12,28 @@ final class FaceTests: XCTestCase {
 
     func testAStateOfAHostNotFollowedShowsNothing() {
         let s = state()
-        XCTAssertEqual(face(for: s, show: .sessions, followed: "a30534a5", breakThroughUntil: nil, now: now), .nothing)
-        XCTAssertEqual(face(for: s, show: .usage, followed: nil, breakThroughUntil: nil, now: now), .nothing)
-        XCTAssertEqual(face(for: s, show: .sessions, followed: "f10f7812", breakThroughUntil: nil, now: now), .sessions)
-        XCTAssertEqual(face(for: s, show: .usage, followed: "f10f7812", breakThroughUntil: nil, now: now), .usage)
+        XCTAssertEqual(face(for: s, show: .sessions, followed: "a30534a5", now: now), .nothing)
+        XCTAssertEqual(face(for: s, show: .usage, followed: nil, now: now), .nothing)
+        XCTAssertEqual(face(for: s, show: .sessions, followed: "f10f7812", now: now), .sessions)
+        XCTAssertEqual(face(for: s, show: .usage, followed: "f10f7812", now: now), .usage)
     }
 
     func testAutoShowsUsageWhileTheStokerRuns() {
         let f = "f10f7812"
-        XCTAssertEqual(face(for: state(stoker: true), show: .auto, followed: f, breakThroughUntil: nil, now: now), .usage)
-        XCTAssertEqual(face(for: state(stoker: false), show: .auto, followed: f, breakThroughUntil: nil, now: now), .sessions)
+        XCTAssertEqual(face(for: state(stoker: true), show: .auto, followed: f, now: now), .usage)
+        XCTAssertEqual(face(for: state(stoker: false), show: .auto, followed: f, now: now), .sessions)
     }
 
     func testAWaitBreaksThroughFor60s() {
-        let s = state(stoker: true)
+        var s = state(stoker: true)
+        s.waitAt = now
         let f = "f10f7812"
-        let until = now.addingTimeInterval(60)
-        XCTAssertEqual(face(for: s, show: .usage, followed: f, breakThroughUntil: until, now: now), .sessions)
-        XCTAssertEqual(face(for: s, show: .auto, followed: f, breakThroughUntil: until, now: now.addingTimeInterval(59)), .sessions)
-        XCTAssertEqual(face(for: s, show: .usage, followed: f, breakThroughUntil: until, now: now.addingTimeInterval(60)), .usage)
-        XCTAssertEqual(face(for: s, show: .usage, followed: "other", breakThroughUntil: until, now: now), .nothing)
+        XCTAssertEqual(face(for: s, show: .usage, followed: f, now: now), .sessions)
+        XCTAssertEqual(face(for: s, show: .auto, followed: f, now: now.addingTimeInterval(59)), .sessions)
+        XCTAssertEqual(face(for: s, show: .usage, followed: f, now: now.addingTimeInterval(60)), .usage)
+        XCTAssertEqual(face(for: s, show: .usage, followed: "other", now: now), .nothing)
+        XCTAssertEqual(breakThroughEnds(s), now.addingTimeInterval(60))
+        XCTAssertNil(breakThroughEnds(state()))
     }
 
     func testTheTightestWindowWins() {

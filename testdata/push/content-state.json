@@ -2,6 +2,7 @@
   "host": "f10f7812",
   "burn": 2,
   "wait": 1,
+  "wait_at": "2026-10-21T15:00:00Z",
   "top": {"n": 3, "state": "waits", "pct": 45, "out": "2026-10-21T16:40:00Z"},
   "accounts": [
     {"n": 1, "windows": [{"name": "5h", "pct": 62, "resets": "2026-10-21T17:00:00Z"}, {"name": "wk", "pct": 31, "resets": "2026-10-26T09:00:00Z"}], "lasts": true},

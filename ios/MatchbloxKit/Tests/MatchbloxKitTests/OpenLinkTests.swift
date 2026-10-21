@@ -21,6 +21,12 @@ final class OpenLinkTests: XCTestCase {
             "matchblox://open?host=f10f78123&session=1",
             "matchblox://open?host=g10f7812&session=1",
             "matchblox://close?host=f10f7812&session=1",
+            "matchblox://open?host=f10f7812&session=012",
+            "matchblox://open?host=f10f7812&session=99999999999999999999",
+            "matchblox://open?host=f10f7812&session=1&x=y",
+            "matchblox://open?host=f10f7812&session=1&session=2",
+            "matchblox://open?host=f10f7812&host=f10f7812&session=1",
+            "matchblox://open/extra?host=f10f7812&session=1",
             "https://open?host=f10f7812&session=1",
         ] {
             XCTAssertNil(OpenLink(url: URL(string: s)!), s)

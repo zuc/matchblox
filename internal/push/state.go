@@ -40,6 +40,9 @@ func Build(doc state.Doc, hostFP string, n *Numbers, now time.Time) ContentState
 		}
 		if waits(it) {
 			cs.Wait++
+			if it.Since.After(cs.WaitAt) {
+				cs.WaitAt = it.Since.UTC()
+			}
 		}
 	}
 	var cands []cand

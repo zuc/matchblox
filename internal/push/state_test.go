@@ -220,3 +220,20 @@ func TestBuildMatchesTheFixture(t *testing.T) {
 		t.Fatalf("\n got %s\nwant %s", b.String(), a.String())
 	}
 }
+
+func TestWaitAtIsTheNewestWait(t *testing.T) {
+	n := openNumbers(t, t.TempDir())
+	d := doc([]sample.Session{sess("a", true, t0), sess("b", true, t0)},
+		[]queue.Item{
+			{SessionID: "a", State: queue.StatePermission, Since: t0.Add(-time.Hour)},
+			{SessionID: "b", State: queue.StateQuestion, Since: t0.Add(-time.Minute)},
+			{SessionID: "a", State: queue.StateFinished, Since: t0},
+		})
+	got := Build(d, fp, n, t0)
+	if !got.WaitAt.Equal(t0.Add(-time.Minute)) {
+		t.Fatalf("WaitAt = %v", got.WaitAt)
+	}
+	if got := Build(doc([]sample.Session{sess("a", true, t0)}, nil), fp, n, t0); !got.WaitAt.IsZero() {
+		t.Fatalf("no wait, WaitAt = %v", got.WaitAt)
+	}
+}

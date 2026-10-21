@@ -7,6 +7,7 @@ final class IslandStateTests: XCTestCase {
         XCTAssertEqual(s.host, "f10f7812")
         XCTAssertEqual(s.burn, 2)
         XCTAssertEqual(s.wait, 1)
+        XCTAssertEqual(s.waitAt, ISO8601DateFormatter().date(from: "2026-10-21T15:00:00Z"))
         XCTAssertEqual(s.top?.n, 3)
         XCTAssertEqual(s.top?.state, "waits")
         XCTAssertEqual(s.top?.pct, 45)

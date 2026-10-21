@@ -12,11 +12,12 @@ public struct OpenLink: Equatable, Sendable {
     }
 
     public init?(url: URL) {
-        guard url.scheme == "matchblox", url.host == "open",
+        guard url.scheme == "matchblox", url.host == "open", url.path.isEmpty,
               let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+              items.count == 2,
               let host = items.first(where: { $0.name == "host" })?.value,
               let s = items.first(where: { $0.name == "session" })?.value,
-              !s.isEmpty, s.allSatisfy({ $0.isASCII && $0.isNumber }), let n = Int(s)
+              s.first != "0", s.allSatisfy({ $0.isASCII && $0.isNumber }), let n = Int(s)
         else { return nil }
         self.init(host: host, session: n)
     }

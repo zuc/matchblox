@@ -42,12 +42,18 @@ public struct IslandState: Codable, Hashable, Sendable {
     public var host: String
     public var burn: Int
     public var wait: Int
+    public var waitAt: Date?  // when the newest wait began
     public var top: Top?
     public var accounts: [AccountUse]
     public var stoker: Bool
 
-    public init(host: String, burn: Int, wait: Int, top: Top?, accounts: [AccountUse], stoker: Bool) {
-        self.host = host; self.burn = burn; self.wait = wait
+    enum CodingKeys: String, CodingKey {
+        case host, burn, wait, top, accounts, stoker
+        case waitAt = "wait_at"
+    }
+
+    public init(host: String, burn: Int, wait: Int, waitAt: Date? = nil, top: Top?, accounts: [AccountUse], stoker: Bool) {
+        self.host = host; self.burn = burn; self.wait = wait; self.waitAt = waitAt
         self.top = top; self.accounts = accounts; self.stoker = stoker
     }
 }

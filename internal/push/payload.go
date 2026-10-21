@@ -18,6 +18,7 @@ type ContentState struct {
 	Host     string       `json:"host"`
 	Burn     int          `json:"burn"`
 	Wait     int          `json:"wait"`
+	WaitAt   time.Time    `json:"wait_at,omitzero"` // when the newest wait began; zero if none
 	Top      *Top         `json:"top,omitempty"`
 	Accounts []AccountUse `json:"accounts"`
 	Stoker   bool         `json:"stoker"`
