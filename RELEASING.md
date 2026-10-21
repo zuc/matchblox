@@ -70,6 +70,66 @@ time the app opens. The optional variable `APNS_ENV = "development"` sends to
 Apple's sandbox and accepts development App Attest keys (a build from Xcode);
 without it the relay is production.
 
+### Rate rules
+
+`wrangler.jsonc` binds three Workers rate limiters, which the relay checks
+in code and answers `429` over the limit. Cloudflare counts each per
+location, over 60 seconds:
+
+| Binding | Route | Key | Limit |
+|---|---|---|---|
+| `RL_SEND` | `/push/send` | the target (`<kind>:<token or channel>`), after the grant check | 30 a minute |
+| `RL_GRANT` | `/push/grant` | the caller's IP | 10 a minute |
+| `RL_CHANNEL` | `/push/channel` | the caller's IP, and the attested key after its check | 3 a minute each |
+
+They deploy with the Worker; there is nothing to set in the dashboard. A
+binding that is missing or fails limits nothing, so a mistake here never
+stops pushes. Apple allows 10,000 channels for each app and environment:
+`all-channels` (Apple's channel management API) shows how many there are.
+
+### Live check (gates a release that ships the island)
+
+The relay reaches Apple over HTTP/2, and channel management on port 2196
+(sandbox 2195); the tests cannot reach either. Before the first release that
+ships the island, and after any change to `worker/push.js`, both checks
+below pass against Apple's sandbox, with a development build of the app on
+the iPad.
+
+1. Deploy to the sandbox (the secrets above are set):
+
+   ```sh
+   npx wrangler@4.148.0 deploy --var APNS_ENV:development
+   npx wrangler@4.148.0 tail --format json \
+     | jq -c 'select(.event.request.url|test("/push/")) | {url: .event.request.url, status: .event.response.status}'
+   ```
+
+   `tail` shows each call's path and status, never its body.
+
+2. **Channel create.** Open the development build and follow a host
+   (Settings → `Follow`). `tail` shows `/push/grant` and `/push/channel`
+   with status `200`: the relay made a channel at Apple. Then the island
+   appears for that host and moves with it (a start, then updates through
+   the channel).
+
+3. **Device send.** With the device token of that build (the host keeps it
+   in the phone's push registration, `device_token`) and the
+   `GRANT_SECRET` you set:
+
+   ```sh
+   TOKEN=<device token, hex>
+   GRANT=$(printf 'device:%s' "$TOKEN" | openssl dgst -sha256 -hmac "$GRANT_SECRET" | awk '{print $NF}')
+   curl -sS https://matchblox.sh/push/send -H 'Content-Type: application/json' \
+     -d '{"target":"'"$TOKEN"'","kind":"device","grant":"'"$GRANT"'","push_type":"alert","priority":10,"payload":{"aps":{"alert":{"title":"matchblox","body":"relay live check"}}}}'
+   ```
+
+   It answers `{"status":200}` and the alert shows on the iPad. Any other
+   status is Apple's, with its `reason`.
+
+4. Back to production: `npx wrangler@4.148.0 deploy` (no `--var`).
+
+If either check fails, the island does not ship: `push: relay <status>`
+on the host's Machine tab names the same status.
+
 ## When something fails
 
 | What failed | What to do |

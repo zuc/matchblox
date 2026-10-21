@@ -6,7 +6,7 @@ import {
 } from "./attest.js";
 import { attestGrantFor, handlePush } from "./push.js";
 import {
-  b64, cbor, ecKeys, fakeEnv, fakeFetch, makeAssertion, makeAttestation, post, rawPublic, sha256,
+  b64, cbor, ecKeys, fakeEnv, fakeFetch, fakeLimiter, makeAssertion, makeAttestation, post, rawPublic, sha256,
   testChain, BUNDLE, TEAM,
 } from "./testkit.js";
 
@@ -243,3 +243,21 @@ test("a channel is made with Apple's channel management API", async () => {
   assert.equal(fetch2.calls.length, 0);
 });
 
+
+test("the rate rule: one attested key makes few channels, from any address", async () => {
+  const { env } = await fakeEnv();
+  env.RL_CHANNEL = fakeLimiter(1);
+  const k = await ecKeys("P-256");
+  const raw = await rawPublic(k.publicKey);
+  const attest_grant = await attestGrantFor(env.GRANT_SECRET, raw);
+  const cd = clientData([]);
+  const assertion = await makeAssertion({ priv: k.privateKey, appId: APP_ID, clientData: cd });
+  const body = { assertion: b64(assertion), attest_grant, key_id: b64(await sha256(raw)), client_data: cd };
+  const fetch = fakeFetch(() => new Response(null, { status: 201, headers: { "apns-channel-id": "dHN0LXNyY2gtY2hubA==" } }));
+  const first = await handlePush(post("/push/channel", body, { "cf-connecting-ip": "192.0.2.1" }), env, { fetch, now });
+  assert.equal(first.status, 200);
+  // The same assertion, replayed from another address.
+  const replay = await handlePush(post("/push/channel", body, { "cf-connecting-ip": "192.0.2.2" }), env, { fetch, now });
+  assert.equal(replay.status, 429);
+  assert.equal(fetch.calls.length, 1);
+});

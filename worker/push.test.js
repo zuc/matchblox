@@ -2,7 +2,7 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { apnsRequest, checkGrant, grantFor, handlePush, resetTokenCache } from "./push.js";
 import worker from "./index.js";
-import { fakeEnv, fakeFetch, post, BUNDLE, TEAM } from "./testkit.js";
+import { fakeEnv, fakeFetch, fakeLimiter, post, BUNDLE, TEAM } from "./testkit.js";
 
 // Apple's hosts, paths and headers, named once here as the fixtures expect
 // them (checked against developer.apple.com, see push.js).
@@ -69,7 +69,8 @@ test("a send with a good grant reaches APNs with the right path and headers", as
   assert.deepEqual(JSON.parse(b64url(h)), { alg: "ES256", kid: "KEYID12345" });
   const claims = JSON.parse(b64url(p));
   assert.equal(claims.iss, TEAM);
-  assert.ok(Math.abs(claims.iat - Date.now() / 1000) < 5);
+  const age = Date.now() / 1000 - claims.iat;
+  assert.ok(age >= 0 && age < 3000, "iat is at most 50 minutes old");
   assert.ok(await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, publicKey, b64url(sig),
     new TextEncoder().encode(`${h}.${p}`)));
 
@@ -122,16 +123,76 @@ test("a kind sent with the wrong push type or priority is refused", async () => 
   assert.equal(fetch.calls.length, 0);
 });
 
-test("the token is kept for 50 minutes and then made again", async () => {
+test("the token's iat is a 50-minute bucket, so every isolate signs the same claims", async () => {
   const { env } = await fakeEnv();
+  const e = await event(env, "device", DEVICE);
+  const claims = (auth) => JSON.parse(b64url(auth.replace(/^bearer /, "").split(".")[1]));
   let t = Date.parse("2026-10-21T10:00:00Z");
   const now = () => t;
-  const e = await event(env, "device", DEVICE);
-  const a = (await apnsRequest(env, e, now)).headers.authorization;
-  t += 49 * 60000;
-  assert.equal((await apnsRequest(env, e, now)).headers.authorization, a);
-  t += 2 * 60000;
-  assert.notEqual((await apnsRequest(env, e, now)).headers.authorization, a);
+  let last;
+  for (let i = 0; i < 30; i++, t += 7 * 60000) {
+    const auth = (await apnsRequest(env, e, now)).headers.authorization;
+    const { iat } = claims(auth);
+    assert.equal(iat % 3000, 0);
+    assert.ok(t / 1000 - iat >= 0 && t / 1000 - iat < 3000, "never older than 50 minutes");
+    if (last && last.iat === iat) assert.equal(auth, last.auth, "kept within its bucket");
+    if (last && last.iat !== iat) assert.notEqual(auth, last.auth, "made again when the bucket turns");
+    last = { iat, auth };
+  }
+  // Another isolate (no kept token) at the same moment signs the same iat.
+  resetTokenCache();
+  t -= 7 * 60000;
+  assert.equal(claims((await apnsRequest(env, e, now)).headers.authorization).iat, last.iat);
+});
+
+test("a relay whose APNs key will not import answers 500, not 400", async () => {
+  const { env } = await fakeEnv();
+  env.APNS_KEY = "-----BEGIN PRIVATE KEY-----\nbm90IGEga2V5\n-----END PRIVATE KEY-----\n";
+  const fetch = fakeFetch();
+  const res = await handlePush(post("/push/send", await event(env, "device", DEVICE)), env, { fetch });
+  assert.equal(res.status, 500);
+  assert.match((await res.json()).error, /not configured/);
+  assert.equal(fetch.calls.length, 0);
+  const missing = await handlePush(post("/push/send", await event(env, "device", DEVICE)), { ...env, GRANT_SECRET: "" }, { fetch });
+  assert.equal(missing.status, 500);
+});
+
+test("the rate rule: each target has its own budget on /push/send, and only a grant spends it", async () => {
+  const { env } = await fakeEnv();
+  env.RL_SEND = fakeLimiter(2);
+  const fetch = fakeFetch();
+  const send = async (e) => (await handlePush(post("/push/send", e), env, { fetch })).status;
+  const d = await event(env, "device", DEVICE);
+  assert.deepEqual([await send(d), await send(d), await send(d)], [200, 200, 429]);
+  assert.equal(await send(await event(env, "device", "ef".repeat(32))), 200);
+  assert.equal(await send(await event(env, "channel", CHANNEL)), 200);
+  assert.equal(fetch.calls.length, 4);
+  // A send without the grant is refused before the limiter: it cannot use
+  // up a target's budget.
+  const before = env.RL_SEND.keys.length;
+  assert.equal(await send({ ...d, target: "12".repeat(32) }), 403);
+  assert.equal(env.RL_SEND.keys.length, before);
+  assert.deepEqual(env.RL_SEND.keys.slice(0, 2), [`device:${DEVICE}`, `device:${DEVICE}`]);
+});
+
+test("the rate rule: /push/grant and /push/channel are limited per IP", async () => {
+  const { env } = await fakeEnv();
+  env.RL_GRANT = fakeLimiter(1);
+  env.RL_CHANNEL = fakeLimiter(1);
+  for (const [path, rl] of [["/push/grant", env.RL_GRANT], ["/push/channel", env.RL_CHANNEL]]) {
+    const call = (ip) => handlePush(post(path, {}, { "cf-connecting-ip": ip }), env, { fetch: fakeFetch() });
+    assert.notEqual((await call("192.0.2.1")).status, 429);
+    assert.equal((await call("192.0.2.1")).status, 429);
+    assert.notEqual((await call("192.0.2.2")).status, 429);
+    assert.deepEqual(rl.keys, ["ip:192.0.2.1", "ip:192.0.2.1", "ip:192.0.2.2"]);
+  }
+});
+
+test("a rate binding that fails limits nothing", async () => {
+  const { env } = await fakeEnv();
+  env.RL_SEND = { limit: async () => { throw new Error("down"); } };
+  const res = await handlePush(post("/push/send", await event(env, "device", DEVICE)), env, { fetch: fakeFetch() });
+  assert.equal(res.status, 200);
 });
 
 test("no payload is logged", async () => {

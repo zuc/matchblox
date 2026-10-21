@@ -11,5 +11,15 @@
     "binding": "ASSETS",
     "not_found_handling": "404-page",
     "run_worker_first": true
-  }
+  },
+  // The push relay's rate rules (design 0010 §3.3, worker/push.js), each
+  // counted per Cloudflare location. Period is 10 or 60 seconds. RL_SEND is
+  // per target: a host buzzes at most once each 30 s and moves the island
+  // a few times a minute at most. RL_GRANT is per IP. RL_CHANNEL is per IP
+  // and per attested key: a phone makes a channel when it follows a host.
+  "ratelimits": [
+    { "name": "RL_SEND", "namespace_id": "10010", "simple": { "limit": 30, "period": 60 } },
+    { "name": "RL_GRANT", "namespace_id": "10011", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_CHANNEL", "namespace_id": "10012", "simple": { "limit": 3, "period": 60 } }
+  ]
 }

@@ -237,6 +237,20 @@ export async function fakeEnv(extra = {}) {
   };
 }
 
-export const post = (path, body) =>
-  new Request("https://matchblox.sh" + path, { method: "POST", headers: { "Content-Type": "application/json" },
+export const post = (path, body, headers = {}) =>
+  new Request("https://matchblox.sh" + path, { method: "POST", headers: { "Content-Type": "application/json", ...headers },
     body: typeof body === "string" ? body : JSON.stringify(body) });
+
+// fakeLimiter is a Workers Rate Limiting binding that lets each key through
+// n times, and records the keys it was asked about.
+export function fakeLimiter(n) {
+  const counts = new Map();
+  return {
+    keys: [],
+    async limit({ key }) {
+      this.keys.push(key);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+      return { success: counts.get(key) <= n };
+    },
+  };
+}

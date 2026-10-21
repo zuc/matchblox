@@ -17,6 +17,11 @@
 // APNS_BUNDLE_ID, GRANT_SECRET. APNS_ENV = "development" sends to Apple's
 // sandbox and accepts development App Attest keys; anything else is
 // production.
+//
+// Rate limits (wrangler.jsonc "ratelimits", design §3.3): RL_SEND per target
+// on /push/send, RL_GRANT per IP on /push/grant, RL_CHANNEL per IP and per
+// attested key on /push/channel. Over a limit the answer is 429. A binding
+// that is missing (tests, local dev) limits nothing.
 
 import { AttestError, fromBase64, verifyAssertion, verifyAttestation } from "./attest.js";
 
@@ -57,9 +62,10 @@ export const APPLE = {
   liveActivityTopic: (bundle) => `${bundle}.push-type.liveactivity`,
 };
 
-// The token is made again after 50 minutes: inside Apple's 20–60 minute
-// window.
-const TOKEN_TTL_MS = 50 * 60 * 1000;
+// The token's iat is the start of a 50-minute bucket, so every isolate
+// signs the same claims and a token is made again only when the bucket
+// turns: never older than 50 minutes, inside Apple's 20–60 minute window.
+const TOKEN_BUCKET_S = 50 * 60;
 // The longest request body: Apple's broadcast payload is at most 5 KB, an
 // alert 4 KB; with the grant and the target this is ample.
 const MAX_BODY = 16 * 1024;
@@ -123,18 +129,38 @@ export function resetTokenCache() {
 }
 
 async function apnsToken(env, now) {
-  const t = now();
+  const iat = Math.floor(now() / 1000 / TOKEN_BUCKET_S) * TOKEN_BUCKET_S;
   const id = `${env.APNS_TEAM_ID}/${env.APNS_KEY_ID}`;
-  if (cached && cached.id === id && t - cached.at < TOKEN_TTL_MS && t >= cached.at) return cached.token;
-  const der = fromBase64(String(env.APNS_KEY).replace(/-----[^-]+-----|\s/g, ""));
-  const key = await subtle.importKey("pkcs8", der, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
-  const head = b64url(enc.encode(JSON.stringify({ alg: "ES256", kid: env.APNS_KEY_ID })));
-  const claims = b64url(enc.encode(JSON.stringify({ iss: env.APNS_TEAM_ID, iat: Math.floor(t / 1000) })));
-  const sig = await subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(`${head}.${claims}`));
-  const token = `${head}.${claims}.${b64url(sig)}`;
-  cached = { id, at: t, token };
+  if (cached && cached.id === id && cached.iat === iat) return cached.token;
+  let token;
+  try {
+    const der = fromBase64(String(env.APNS_KEY).replace(/-----[^-]+-----|\s/g, ""));
+    const key = await subtle.importKey("pkcs8", der, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+    const head = b64url(enc.encode(JSON.stringify({ alg: "ES256", kid: env.APNS_KEY_ID })));
+    const claims = b64url(enc.encode(JSON.stringify({ iss: env.APNS_TEAM_ID, iat })));
+    const sig = await subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(`${head}.${claims}`));
+    token = `${head}.${claims}.${b64url(sig)}`;
+  } catch {
+    // The relay's own key, not the caller's input.
+    refuse(500, "relay not configured: APNS_KEY is not a P-256 .p8 key");
+  }
+  cached = { id, iat, token };
   return token;
 }
+
+// limited says whether key is over the binding's limit. No binding, or a
+// binding that fails, limits nothing: a push is worth more than the cap.
+async function limited(binding, key) {
+  if (!binding || typeof binding.limit !== "function") return false;
+  try {
+    const { success } = await binding.limit({ key });
+    return success === false;
+  } catch {
+    return false;
+  }
+}
+
+const clientIP = (request) => request.headers.get("cf-connecting-ip") || "unknown";
 
 const apple = (env) => (env.APNS_ENV === "development" ? APPLE.development : APPLE.production);
 
@@ -210,6 +236,9 @@ async function send(request, env, deps) {
   if (e.push_type !== k.pushType) refuse(400, "bad push type for this kind");
   if (e.priority !== 10 && e.priority !== 5) refuse(400, "priority is 10 or 5");
   if (typeof e.payload !== "object" || e.payload === null || Array.isArray(e.payload)) refuse(400, "payload is a JSON object");
+  // Per target, after the grant: only a grant holder spends a target's
+  // budget.
+  if (await limited(env.RL_SEND, `${e.kind}:${e.target}`)) refuse(429, "rate limited");
   const r = await apnsRequest(env, e, deps.now);
   let res;
   try {
@@ -263,6 +292,7 @@ async function authenticate(body, env, deps) {
 }
 
 async function grant(request, env, deps) {
+  if (await limited(env.RL_GRANT, `ip:${clientIP(request)}`)) refuse(429, "rate limited");
   const body = await readJSON(request);
   const items = typeof body.client_data === "string" ? safeItems(body.client_data) : body.client_data?.items;
   if (!Array.isArray(items) || items.length > MAX_ITEMS) refuse(400, `client_data.items is a list of at most ${MAX_ITEMS}`);
@@ -285,14 +315,19 @@ function safeItems(s) {
 }
 
 async function channel(request, env, deps) {
+  if (await limited(env.RL_CHANNEL, `ip:${clientIP(request)}`)) refuse(429, "rate limited");
   const body = await readJSON(request);
   await authenticate(body, env, deps);
+  // Per attested key too, after the check, so a replayed assertion or one
+  // phone on many addresses still makes few channels.
+  if (await limited(env.RL_CHANNEL, `key:${body.key_id}`)) refuse(429, "rate limited");
   const bundle = env.APNS_BUNDLE_ID;
+  const token = await apnsToken(env, deps.now);
   let res;
   try {
     res = await deps.fetch(apple(env).manage + APPLE.channelsPath(bundle), {
       method: "POST",
-      headers: { authorization: `bearer ${await apnsToken(env, deps.now)}`, "content-type": "application/json" },
+      headers: { authorization: `bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ "message-storage-policy": 0, "push-type": "LiveActivity" }),
     });
   } catch {
