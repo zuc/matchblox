@@ -93,7 +93,7 @@ func pushService(t *testing.T, r push.Relay, regs ...push.Registration) (*Servic
 		t.Fatal(err)
 	}
 	s.PushNumbers = n
-	s.Push = push.NewSender(r, pushPhones(regs), n, pushFP, c.now)
+	s.Push = push.NewSender(r, pushPhones(regs), n, t.TempDir(), pushFP, c.now)
 	s.Push.HostLabel = "work-1"
 	t.Cleanup(s.Push.Close)
 	return s, c

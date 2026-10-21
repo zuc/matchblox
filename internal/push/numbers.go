@@ -165,17 +165,22 @@ func (n *Numbers) Names(sessions []sample.Session, accounts []limits.Account) (m
 	return ss, as
 }
 
-// save writes numbers.json whole, through a temporary file and a rename, as
-// the stoker does. The caller holds mu.
+// save writes numbers.json whole. The caller holds mu.
 func (n *Numbers) save() error {
 	b, err := json.Marshal(n.st)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(n.dir, 0o700); err != nil {
+	return writeAtomic(n.dir, "numbers.json", b)
+}
+
+// writeAtomic writes name in dir whole, through a temporary file and a
+// rename, as the stoker does.
+func writeAtomic(dir, name string, b []byte) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(n.dir, ".numbers-*.json")
+	tmp, err := os.CreateTemp(dir, "."+strings.TrimSuffix(name, ".json")+"-*.json")
 	if err != nil {
 		return err
 	}
@@ -188,7 +193,7 @@ func (n *Numbers) save() error {
 		os.Remove(tmp.Name())
 		return err
 	}
-	if err := os.Rename(tmp.Name(), filepath.Join(n.dir, "numbers.json")); err != nil {
+	if err := os.Rename(tmp.Name(), filepath.Join(dir, name)); err != nil {
 		os.Remove(tmp.Name())
 		return err
 	}

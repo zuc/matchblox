@@ -25,7 +25,7 @@ func (h homePhones) List() []push.Registration {
 // registered in home. Nil and no error with [push] off: nothing ever
 // connects to the relay. The host's tag is the fingerprint of the host key
 // the pair link pins, so it is the one the phone learned at pairing.
-func pushSender(cfg config.Push, home, hostKeyPath string, n *push.Numbers) (*push.Sender, error) {
+func pushSender(cfg config.Push, home, dir, hostKeyPath string, n *push.Numbers) (*push.Sender, error) {
 	if cfg.Off {
 		return nil, nil
 	}
@@ -33,7 +33,7 @@ func pushSender(cfg config.Push, home, hostKeyPath string, n *push.Numbers) (*pu
 	if err != nil {
 		return nil, err
 	}
-	s := push.NewSender(push.NewHTTPRelay(cfg.Relay, push.DefaultTimeout), homePhones(home), n, fp, time.Now)
+	s := push.NewSender(push.NewHTTPRelay(cfg.Relay, push.DefaultTimeout), homePhones(home), n, dir, fp, time.Now)
 	s.HostLabel = setup.HostLabel()
 	return s, nil
 }
@@ -51,7 +51,7 @@ func wirePush(s *service.Service, cfg config.Push, home, dir, hostKeyPath string
 		return
 	}
 	s.PushNumbers = n
-	p, err := pushSender(cfg, home, hostKeyPath, n)
+	p, err := pushSender(cfg, home, dir, hostKeyPath, n)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "matchblox: push is off:", err)
 		return

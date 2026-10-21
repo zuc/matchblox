@@ -2,10 +2,14 @@ package push
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -48,6 +52,7 @@ type Sender struct {
 	relay  Relay
 	phones Phones
 	n      *Numbers
+	dir    string // where starts.json keeps the good starts across restarts
 	hostFP string
 	now    func() time.Time
 
@@ -67,19 +72,55 @@ type Sender struct {
 	last    *ContentState // the last state sent to the island
 	pctAt   time.Time
 	usageAt time.Time
-	started map[string]time.Time // push-to-start token -> last good start
+	started map[string]time.Time // push-to-start token -> last good start, kept in starts.json
 	tried   map[string]time.Time // push-to-start token -> last failed start
 	dead    map[string]bool      // push-to-start tokens the relay answered 410
 }
 
-// NewSender starts the sender's one worker; Close stops it.
-func NewSender(r Relay, p Phones, n *Numbers, hostFP string, now func() time.Time) *Sender {
+// NewSender starts the sender's one worker; Close stops it. dir is the state
+// dir: starts.json there keeps when each island started, so a restart of the
+// service does not start a second one.
+func NewSender(r Relay, p Phones, n *Numbers, dir, hostFP string, now func() time.Time) *Sender {
 	ctx, cancel := context.WithCancel(context.Background())
-	s := &Sender{relay: r, phones: p, n: n, hostFP: hostFP, now: now,
+	s := &Sender{relay: r, phones: p, n: n, dir: dir, hostFP: hostFP, now: now,
 		in: make(chan state.Doc, 1), ctx: ctx, cancel: cancel, done: make(chan struct{}),
-		started: map[string]time.Time{}, tried: map[string]time.Time{}, dead: map[string]bool{}}
+		started: loadStarts(dir), tried: map[string]time.Time{}, dead: map[string]bool{}}
 	go s.run()
 	return s
+}
+
+// startsFile is the good starts by push-to-start token, as the SHA-256 of the
+// token in hex: the file needs no token to say a start happened.
+const startsFile = "starts.json"
+
+func startKey(tok string) string {
+	sum := sha256.Sum256([]byte(tok))
+	return hex.EncodeToString(sum[:])
+}
+
+// loadStarts reads starts.json. A missing or bad file is no start: at worst
+// an island starts once more.
+func loadStarts(dir string) map[string]time.Time {
+	out := map[string]time.Time{}
+	b, err := os.ReadFile(filepath.Join(dir, startsFile)) //nolint:gosec // our own state dir
+	if err != nil || json.Unmarshal(b, &out) != nil {
+		return map[string]time.Time{}
+	}
+	return out
+}
+
+// saveStarts writes the starts that still count (within 8 hours); the worker
+// calls it.
+func (s *Sender) saveStarts(now time.Time) {
+	for k, at := range s.started {
+		if now.Sub(at) >= 8*time.Hour {
+			delete(s.started, k)
+		}
+	}
+	b, _ := json.Marshal(s.started)
+	if err := writeAtomic(s.dir, startsFile, b); err != nil {
+		s.fail("starts: " + err.Error())
+	}
 }
 
 // OnDoc hands a doc to the worker and never blocks: the one slot keeps the
@@ -298,7 +339,8 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 			var re *RelayError
 			switch {
 			case err == nil:
-				s.started[tok] = now
+				s.started[startKey(tok)] = now
+				s.saveStarts(now)
 				delete(s.tried, tok)
 				continue // the start carried this state
 			case errors.As(err, &re) && re.Code == http.StatusGone:
@@ -357,7 +399,7 @@ func (s *Sender) needStart(tok string, now time.Time) bool {
 	if at, ok := s.tried[tok]; ok && now.Sub(at) < startRetry {
 		return false
 	}
-	at, ok := s.started[tok]
+	at, ok := s.started[startKey(tok)]
 	return !ok || now.Sub(at) >= restartAfter
 }
 

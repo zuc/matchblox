@@ -76,7 +76,7 @@ func waitHits(n *atomic.Int32, want int32) int32 {
 // [push] off: no sender, and the relay never hears from this host.
 func TestPushOffSendsNothing(t *testing.T) {
 	url, hits := fakeRelay(t, http.StatusOK)
-	s, err := pushSender(config.Push{Relay: url, Off: true}, registered(t), hostKey(t), numbers(t))
+	s, err := pushSender(config.Push{Relay: url, Off: true}, registered(t), t.TempDir(), hostKey(t), numbers(t))
 	if s != nil || err != nil {
 		t.Fatalf("sender %v, %v with push off", s, err)
 	}
@@ -90,7 +90,7 @@ func TestPushOffSendsNothing(t *testing.T) {
 // registered, and reports a failing relay as push: <why>.
 func TestTheSenderUsesTheConfiguredRelay(t *testing.T) {
 	url, hits := fakeRelay(t, http.StatusServiceUnavailable)
-	s, err := pushSender(config.Push{Relay: url}, registered(t), hostKey(t), numbers(t))
+	s, err := pushSender(config.Push{Relay: url}, registered(t), t.TempDir(), hostKey(t), numbers(t))
 	if s == nil || err != nil {
 		t.Fatalf("sender %v, %v", s, err)
 	}
@@ -114,7 +114,7 @@ func TestTheSenderUsesTheConfiguredRelay(t *testing.T) {
 // No phone registered: nothing is sent.
 func TestNoPhoneNoSend(t *testing.T) {
 	url, hits := fakeRelay(t, http.StatusOK)
-	s, err := pushSender(config.Push{Relay: url}, homeWithPhoneID(t), hostKey(t), numbers(t))
+	s, err := pushSender(config.Push{Relay: url}, homeWithPhoneID(t), t.TempDir(), hostKey(t), numbers(t))
 	if s == nil || err != nil {
 		t.Fatalf("sender %v, %v", s, err)
 	}
@@ -128,7 +128,7 @@ func TestNoPhoneNoSend(t *testing.T) {
 
 // A host without its key sends nothing: no phone could pin it.
 func TestNoHostKeyNoSender(t *testing.T) {
-	s, err := pushSender(config.Push{Relay: "http://127.0.0.1:9"}, registered(t), filepath.Join(t.TempDir(), "missing.pub"), numbers(t))
+	s, err := pushSender(config.Push{Relay: "http://127.0.0.1:9"}, registered(t), t.TempDir(), filepath.Join(t.TempDir(), "missing.pub"), numbers(t))
 	if s != nil || err == nil {
 		t.Fatalf("sender %v, %v without a host key", s, err)
 	}

@@ -80,7 +80,7 @@ func phone(t *testing.T, name string, buzz, island bool) (Registration, *ecdh.Pr
 
 func newSender(t *testing.T, r Relay, c *clock, regs ...Registration) *Sender {
 	t.Helper()
-	s := NewSender(r, phones(regs), openNumbers(t, t.TempDir()), fp, c.now)
+	s := NewSender(r, phones(regs), openNumbers(t, t.TempDir()), t.TempDir(), fp, c.now)
 	s.HostLabel = "work-1"
 	t.Cleanup(s.Close)
 	return s
@@ -428,7 +428,7 @@ func TestARelayThatHangsDoesNotStallPublish(t *testing.T) {
 	defer close(h.release)
 	c := &clock{t: t0}
 	p, _ := phone(t, "a", true, true)
-	s := NewSender(h, phones{p}, openNumbers(t, t.TempDir()), fp, c.now)
+	s := NewSender(h, phones{p}, openNumbers(t, t.TempDir()), t.TempDir(), fp, c.now)
 	s.Timeout = 30 * time.Millisecond
 	defer s.Close()
 
@@ -532,7 +532,7 @@ func TestAStartOfAnotherPhoneDoesNotSwallowAHeldChange(t *testing.T) {
 	a, _ := phone(t, "a", false, true)
 	b, _ := phone(t, "b", false, true)
 	ps := &livePhones{regs: []Registration{a}}
-	s := NewSender(r, ps, openNumbers(t, t.TempDir()), fp, c.now)
+	s := NewSender(r, ps, openNumbers(t, t.TempDir()), t.TempDir(), fp, c.now)
 	t.Cleanup(s.Close)
 
 	s.handle(burning(10))
@@ -638,5 +638,43 @@ func TestANumberThatCannotBeSavedIsNotSent(t *testing.T) {
 	}
 	if st := s.Status(); st != "" {
 		t.Fatalf("status after the disk mends %q", st)
+	}
+}
+
+// A restart of the service does not start a second island: the starts are
+// kept on disk, and the new sender starts again only near the 8 hours.
+func TestARestartDoesNotStartASecondIsland(t *testing.T) {
+	dir := t.TempDir()
+	r := &fakeRelay{}
+	c := &clock{t: t0}
+	p, _ := phone(t, "a", false, true)
+	s := NewSender(r, phones{p}, openNumbers(t, dir), dir, fp, c.now)
+	s.handle(burning(10))
+	if ev := ofKind(r.take(), "start"); len(ev) != 1 {
+		t.Fatalf("first start %+v", ev)
+	}
+	s.Close()
+
+	c.add(time.Hour)
+	s = NewSender(r, phones{p}, openNumbers(t, dir), dir, fp, c.now)
+	t.Cleanup(s.Close)
+	s.handle(burning(10))
+	if ev := ofKind(r.take(), "start"); len(ev) != 0 {
+		t.Fatalf("a second island after a restart: %+v", ev)
+	}
+	c.add(6*time.Hour + 30*time.Minute)
+	s.handle(burning(10))
+	if ev := ofKind(r.take(), "start"); len(ev) != 1 {
+		t.Fatalf("no new start at 7h30: %+v", ev)
+	}
+	// A starts file that does not parse is no start: the island starts.
+	if err := os.WriteFile(filepath.Join(dir, "starts.json"), []byte("{nope"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s2 := NewSender(r, phones{p}, openNumbers(t, dir), dir, fp, c.now)
+	t.Cleanup(s2.Close)
+	s2.handle(burning(10))
+	if ev := ofKind(r.take(), "start"); len(ev) != 1 {
+		t.Fatalf("a bad starts file: %+v", ev)
 	}
 }
