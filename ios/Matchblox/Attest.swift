@@ -24,6 +24,8 @@ enum Attest {
     }
 
     private static let service = "com.blox.matchblox.attest"
+    /// The app's own access group, never the one the extensions share.
+    private static let group = Bundle.main.object(forInfoDictionaryKey: "MatchbloxOwnKeychainGroup") as? String
     private static let keyIdAccount = "key-id"
     private static let grantAccount = "attest-grant"
 
@@ -32,14 +34,14 @@ enum Attest {
         let clientData = Relay.clientData(items: items, time: Int(Date().timeIntervalSince1970))
         let data = try await post(Relay.grantURL, clientData: clientData)
         guard let reply = try? JSONDecoder().decode(Relay.GrantReply.self, from: data) else { throw Failure.badReply }
-        Keychain.set(Data(reply.attestGrant.utf8), service: service, account: grantAccount)
+        Keychain.set(Data(reply.attestGrant.utf8), service: service, account: grantAccount, group: group)
         return reply.grants
     }
 
     /// A new broadcast channel and its grant.
     static func channel() async throws -> ChannelGrant {
         // The channel call takes an assertion; the attest grant comes from a grant call.
-        if Keychain.get(service: service, account: grantAccount) == nil {
+        if Keychain.get(service: service, account: grantAccount, group: group) == nil {
             _ = try await grants(items: [])
         }
         let clientData = Relay.clientData(items: nil, time: Int(Date().timeIntervalSince1970))
@@ -54,8 +56,8 @@ enum Attest {
         let hash = Data(SHA256.hash(data: Data(clientData.utf8)))
         var body: [String: String] = ["client_data": clientData]
 
-        let stored = Keychain.get(service: service, account: keyIdAccount).map { String(decoding: $0, as: UTF8.self) }
-        let attestGrant = Keychain.get(service: service, account: grantAccount).map { String(decoding: $0, as: UTF8.self) }
+        let stored = Keychain.get(service: service, account: keyIdAccount, group: group).map { String(decoding: $0, as: UTF8.self) }
+        let attestGrant = Keychain.get(service: service, account: grantAccount, group: group).map { String(decoding: $0, as: UTF8.self) }
         if let keyId = stored, let attestGrant {
             body["key_id"] = keyId
             body["attest_grant"] = attestGrant
@@ -63,8 +65,8 @@ enum Attest {
         } else {
             // A key is attested once: an old key without its grant gives way to a new one.
             let keyId = try await attest.generateKey()
-            Keychain.set(Data(keyId.utf8), service: service, account: keyIdAccount)
-            Keychain.remove(service: service, account: grantAccount)
+            Keychain.set(Data(keyId.utf8), service: service, account: keyIdAccount, group: group)
+            Keychain.remove(service: service, account: grantAccount, group: group)
             body["key_id"] = keyId
             body["attestation"] = try await attest.attestKey(keyId, clientDataHash: hash).base64EncodedString()
         }
@@ -80,7 +82,7 @@ enum Attest {
             if status == 403, let reason, reason.hasPrefix("app attest") || reason == "bad attest grant"
                 || reason == "key_id is not the attested key" {
                 // A grant or key the relay no longer takes: attest a new key next time.
-                Keychain.remove(service: service, account: grantAccount)
+                Keychain.remove(service: service, account: grantAccount, group: group)
             }
             throw Failure.relay(status: status, error: reason)
         }
@@ -88,7 +90,8 @@ enum Attest {
     }
 }
 
-/// Small generic-password items. `group` nil keeps them in this app's own keychain.
+/// Small generic-password items in the given access group. With no group, an item goes to the
+/// first group of the app's entitlements, which is the app's own.
 enum Keychain {
     private static func identity(service: String, account: String, group: String?) -> [CFString: Any] {
         var q: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]

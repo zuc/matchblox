@@ -23,8 +23,9 @@ The app has two extensions: MatchbloxIsland (the Live Activity) and
 MatchbloxBuzz (the buzz). Set your team on all three targets. The app needs
 these capabilities: Push Notifications, App Attest, App Groups
 (`group.com.blox.matchblox`) and Keychain Sharing
-(`com.blox.matchblox.shared`). The extensions carry the App Group, and the
-buzz also the keychain group.
+(`com.blox.matchblox`, the app's own and first, then
+`com.blox.matchblox.shared`). The extensions carry the App Group, and the
+buzz also the shared keychain group, which holds only the notification key.
 
 If Xcode says that the bundle identifier is not available, give your
 build its own identifier. Do not change `project.yml`. The app, both

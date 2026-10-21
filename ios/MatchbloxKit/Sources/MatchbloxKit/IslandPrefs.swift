@@ -68,6 +68,16 @@ public struct RegistrationRecord: Codable, Equatable, Sendable {
     }
 
     public static func needed(last: RegistrationRecord?, now: RegistrationRecord) -> Bool { last != now }
+
+    /// The island to send a host: none for a host not followed. For the followed host, the
+    /// push-to-start token of this launch, else the one kept from before, else the island
+    /// registered last, so a slow token never clears the island; only a change of Follow does.
+    /// `channel` is the channel kept for this host ("" when the relay has to make one).
+    public static func island(followed: Bool, start: String?, kept: String?, last: IslandReg?, channel: String?) -> IslandReg? {
+        guard followed else { return nil }
+        guard let token = start ?? kept else { return last }
+        return IslandReg(startToken: token, channel: channel ?? "")
+    }
 }
 
 /// A broadcast channel the relay made for one host, with its grant.

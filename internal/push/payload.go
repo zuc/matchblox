@@ -56,8 +56,9 @@ type Buzz struct {
 }
 
 // RegisterRequest is what the phone sends a host to be pushed to. Grants maps
-// a Host8 tag to the grant the relay checks; NotifyKey is the X25519 public
-// key the buzz is sealed to.
+// "<kind>:<target>" (device:<token>, start:<token>, channel:<id>) to the
+// grant the relay checks, as Sender.send looks it up; NotifyKey is the X25519
+// public key the buzz is sealed to.
 type RegisterRequest struct {
 	DeviceToken string            `json:"device_token"`
 	Grants      map[string]string `json:"grants"`

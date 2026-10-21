@@ -13,7 +13,8 @@ import UserNotifications
 final class PushTokens {
     static let shared = PushTokens()
 
-    var device: String?
+    /// The device token: the one kept from before until iOS gives this launch's.
+    var device: String? = IslandSettings.keptDeviceToken
     var start: String?
     private var watching = false
 
@@ -24,7 +25,9 @@ final class PushTokens {
         UIApplication.shared.registerForRemoteNotifications()
         Task {
             for await data in Activity<IslandAttributes>.pushToStartTokenUpdates {
-                PushTokens.shared.start = hexToken(data)
+                let token = hexToken(data)
+                PushTokens.shared.start = token
+                IslandSettings.keptStartToken = token
             }
         }
     }
@@ -85,10 +88,14 @@ enum Registration {
               let notifyKey = NotifyKey.publicKey()
         else { return nil }
         let prefs = IslandSettings.prefs
-        var island: IslandReg?
-        if prefs.follow == host.fingerprint, let start = await PushTokens.shared.wait(\.start) {
-            island = IslandReg(startToken: start, channel: IslandSettings.channel(host: host)?.channel ?? "")
-        }
+        let followed = prefs.follow == host.fingerprint
+        let island = RegistrationRecord.island(
+            followed: followed,
+            start: followed ? await PushTokens.shared.wait(\.start) : nil,
+            kept: IslandSettings.keptStartToken,
+            last: IslandSettings.record(host: host)?.island,
+            channel: IslandSettings.channel(host: host)?.channel
+        )
         return RegistrationRecord(deviceToken: device, notifyKey: notifyKey, buzz: prefs.buzzOn(host.fingerprint), island: island)
     }
 
@@ -102,12 +109,14 @@ enum Registration {
     static func run(host: Host, key: NIOSSHPrivateKey) async throws {
         guard var want = await desired(for: host) else { throw Failure.noDeviceToken }
         guard RegistrationRecord.needed(last: IslandSettings.record(host: host), now: want) else { return }
+        try Task.checkCancellation()
 
         var grants = try await Attest.grants(items: Relay.items(deviceToken: want.deviceToken, startToken: want.island?.startToken))
         for item in Relay.items(deviceToken: want.deviceToken, startToken: want.island?.startToken)
         where grants[Relay.grantKey(item.kind, item.value)] == nil {
             throw Failure.noGrant(item.kind)
         }
+        try Task.checkCancellation()
         if let island = want.island {
             let channel: ChannelGrant
             if let kept = IslandSettings.channel(host: host), kept.channel == island.channel, !island.channel.isEmpty {
@@ -119,6 +128,7 @@ enum Registration {
             want.island?.channel = channel.channel
             grants[Relay.grantKey("channel", channel.channel)] = channel.grant
         }
+        try Task.checkCancellation()
 
         let request = RegisterRequest(
             deviceToken: want.deviceToken,
@@ -146,7 +156,7 @@ enum Registration {
         } catch {
             islandLog.error("register with \(host.label, privacy: .public): \(String(describing: error), privacy: .public)")
         }
-        guard let lost, let context, let old = hosts.first(where: { $0.fingerprint == lost }) else { return }
+        guard !Task.isCancelled, let lost, let context, let old = hosts.first(where: { $0.fingerprint == lost }) else { return }
         do {
             let oldKey = DeviceKey.nioKey(try DeviceKey.load(host: old.fingerprint, context: context))
             try await run(host: old, key: oldKey)
@@ -174,6 +184,7 @@ enum Registration {
         defer { context.invalidate() }
         var unreachable: [Host] = []
         for host in due {
+            guard !Task.isCancelled else { break }
             do {
                 let key = DeviceKey.nioKey(try DeviceKey.load(host: host.fingerprint, context: context))
                 try await run(host: host, key: key)
@@ -195,8 +206,18 @@ enum Registration {
         _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
     }
 
+    /// The ssh exchange closes at once when its task is cancelled (the app went to the background).
     private static func exchange(_ request: RegisterRequest, host: Host, key: NIOSSHPrivateKey) async throws -> RegisterReply {
         let session = SSHSession(host: host.address, port: host.port, user: host.user, key: key, hostKeyFingerprint: host.fingerprint)
+        return try await withTaskCancellationHandler {
+            try await exchange(request, over: session)
+        } onCancel: {
+            Task { await session.close() }
+        }
+    }
+
+    private static func exchange(_ request: RegisterRequest, over session: SSHSession) async throws -> RegisterReply {
+        try Task.checkCancellation()
         let output = try await session.open(command: "matchblox push register", pty: nil)
         let deadline = Task {
             try? await Task.sleep(for: replyDeadline)
@@ -206,7 +227,10 @@ enum Registration {
             deadline.cancel()
             Task { await session.close() }
         }
+        try Task.checkCancellation()
         await session.write(request.line)
-        return try await RegisterReply.read(from: output)
+        let reply = try await RegisterReply.read(from: output)
+        try Task.checkCancellation()
+        return reply
     }
 }

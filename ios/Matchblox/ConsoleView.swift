@@ -9,6 +9,7 @@ import SwiftUI
 struct ConsoleView: View {
     let host: Host
     let onHosts: (() -> Void)?
+    let onIsland: () -> Void
     let onScanAgain: () -> Void
 
     @State private var connection: ConsoleConnection
@@ -19,10 +20,12 @@ struct ConsoleView: View {
         open: Int? = nil,
         onFailure: @escaping (ConnectFailure) -> Void,
         onHosts: (() -> Void)?,
+        onIsland: @escaping () -> Void,
         onScanAgain: @escaping () -> Void
     ) {
         self.host = host
         self.onHosts = onHosts
+        self.onIsland = onIsland
         self.onScanAgain = onScanAgain
         _connection = State(initialValue: ConsoleConnection(host: host, open: open, onFailure: onFailure))
     }
@@ -84,10 +87,14 @@ struct ConsoleView: View {
         .background(Theme.bg)
     }
 
-    @ViewBuilder
+    /// Hosts (with more than one host) and Island (always), beside the console's actions.
     private var hostsButton: some View {
-        if let onHosts {
-            Button("Hosts", action: onHosts)
+        HStack(spacing: 24) {
+            if let onHosts {
+                Button("Hosts", action: onHosts)
+                    .foregroundStyle(Theme.muted)
+            }
+            Button("Island", action: onIsland)
                 .foregroundStyle(Theme.muted)
         }
     }
@@ -147,6 +154,8 @@ final class ConsoleConnection {
     @ObservationIgnored private var unlocked: LAContext?
     /// Registration runs once for each open, after the unlock.
     @ObservationIgnored private var registered = false
+    /// Cancelled with the console: nothing registers from the background.
+    @ObservationIgnored private var registration: Task<Void, Never>?
     /// The session a tapped link opens; the console opens plainly once it has been live.
     @ObservationIgnored private var openSession: Int?
     private let host: Host
@@ -169,6 +178,8 @@ final class ConsoleConnection {
         unlocked?.invalidate()
         unlocked = nil
         registered = false
+        registration?.cancel()
+        registration = nil
     }
 
     func retry() {
@@ -207,7 +218,7 @@ final class ConsoleConnection {
                 let host = host
                 let context = unlocked
                 // Beside the console, never before it: an error is logged, nothing more.
-                Task { await Registration.afterOpen(host: host, key: key, context: context, hosts: HostStore.standard.all()) }
+                registration = Task { await Registration.afterOpen(host: host, key: key, context: context, hosts: HostStore.standard.all()) }
             }
 
             let session = SSHSession(

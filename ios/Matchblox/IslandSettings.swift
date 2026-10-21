@@ -22,6 +22,18 @@ enum IslandSettings {
         set { write(newValue, prefsKey) }
     }
 
+    /// The last APNs device token iOS gave, kept across launches.
+    static var keptDeviceToken: String? {
+        get { defaults.string(forKey: "island-device-token") }
+        set { defaults.set(newValue, forKey: "island-device-token") }
+    }
+
+    /// The last push-to-start token iOS gave, kept across launches.
+    static var keptStartToken: String? {
+        get { defaults.string(forKey: "island-start-token") }
+        set { defaults.set(newValue, forKey: "island-start-token") }
+    }
+
     static func record(host: Host) -> RegistrationRecord? { read(recordKey(host8(host.fingerprint))) }
     static func setRecord(_ record: RegistrationRecord, host: Host) { write(record, recordKey(host8(host.fingerprint))) }
 

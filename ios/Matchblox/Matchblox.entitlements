@@ -12,6 +12,7 @@
 	</array>
 	<key>keychain-access-groups</key>
 	<array>
+		<string>$(AppIdentifierPrefix)$(MATCHBLOX_BUNDLE_ID)</string>
 		<string>$(AppIdentifierPrefix)$(MATCHBLOX_BUNDLE_ID).shared</string>
 	</array>
 </dict>

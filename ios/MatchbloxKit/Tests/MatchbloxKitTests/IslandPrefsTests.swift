@@ -83,6 +83,19 @@ final class IslandPrefsTests: XCTestCase {
         XCTAssertTrue(RegistrationRecord.needed(last: follow, now: rotated))
     }
 
+    func testASlowStartTokenKeepsTheIsland() {
+        let last = IslandReg(startToken: "aa", channel: "ch")
+        XCTAssertEqual(RegistrationRecord.island(followed: true, start: nil, kept: nil, last: last, channel: "ch"), last)
+        XCTAssertEqual(RegistrationRecord.island(followed: true, start: nil, kept: "aa", last: last, channel: "ch"), last)
+        XCTAssertEqual(RegistrationRecord.island(followed: true, start: "bb", kept: "aa", last: last, channel: "ch"),
+                       IslandReg(startToken: "bb", channel: "ch"))
+        XCTAssertNil(RegistrationRecord.island(followed: true, start: nil, kept: nil, last: nil, channel: nil))
+        XCTAssertEqual(RegistrationRecord.island(followed: true, start: "bb", kept: nil, last: nil, channel: nil),
+                       IslandReg(startToken: "bb", channel: ""))
+        XCTAssertNil(RegistrationRecord.island(followed: false, start: "bb", kept: "aa", last: last, channel: "ch"),
+                     "only a change of Follow clears the island")
+    }
+
     func testTheClientDataIsTheJSONTheRelayReads() throws {
         let s = Relay.clientData(items: Relay.items(deviceToken: "80b1", startToken: "6162"), time: 1_700_000_000)
         XCTAssertEqual(s, #"{"items":[{"kind":"device","value":"80b1"},{"kind":"start","value":"6162"}],"time":1700000000}"#)

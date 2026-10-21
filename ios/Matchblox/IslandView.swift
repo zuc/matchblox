@@ -12,6 +12,7 @@ struct IslandView: View {
     @State private var unreachable: [String] = []
     @State private var pending: Set<String> = []
     @State private var task: Task<Void, Never>?
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -51,7 +52,7 @@ struct IslandView: View {
                 .listRowBackground(Theme.bg)
             }
             .scrollContentBackground(.hidden)
-            Button("Hosts", action: onBack)
+            Button("Back", action: onBack)
                 .foregroundStyle(Theme.muted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -59,6 +60,13 @@ struct IslandView: View {
         .onAppear {
             hosts = store.all()
             prefs = IslandSettings.prefs
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Nothing connects from the background; the hosts change at the next connect.
+            if phase == .background {
+                task?.cancel()
+                task = nil
+            }
         }
         .onChange(of: prefs) { old, new in
             IslandSettings.prefs = new

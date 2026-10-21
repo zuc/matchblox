@@ -59,7 +59,7 @@ func TestRegisterRepliesTheNames(t *testing.T) {
 		return map[int]string{1: "api", 3: "docs"}, map[int]string{2: "claude work"}
 	}
 	before := time.Now()
-	req := push.RegisterRequest{DeviceToken: "tok", Grants: map[string]string{"f10f7812": "g"}, NotifyKey: []byte{1, 2}, Buzz: true,
+	req := push.RegisterRequest{DeviceToken: "tok", Grants: map[string]string{"device:tok": "g"}, NotifyKey: []byte{1, 2}, Buzz: true,
 		Island: &push.IslandReg{StartToken: "start", Channel: "chan"}}
 	got := register(t, home, regID, registerLine(t, req), names)
 	if want := `{"ok":true,"sessions":{"1":"api","3":"docs"},"accounts":{"2":"claude work"}}` + "\n"; got != want {

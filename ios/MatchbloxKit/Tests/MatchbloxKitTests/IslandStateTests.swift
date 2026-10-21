@@ -24,7 +24,10 @@ final class IslandStateTests: XCTestCase {
 
     func testTheRegisterTypesReadTheFixtures() throws {
         let r: RegisterRequest = try PushFixture.load("register-request")
-        XCTAssertEqual(r.grants["f10f7812"], "Z3JhbnQtb25l")
+        // Grants are keyed as the host's Sender looks them up: "<kind>:<target>".
+        XCTAssertEqual(r.grants[Relay.grantKey("device", r.deviceToken)], "Z3JhbnQtb25l")
+        XCTAssertEqual(r.grants[Relay.grantKey("start", "6162636465666768")], "Z3JhbnQtdHdv")
+        XCTAssertEqual(r.grants[Relay.grantKey("channel", "Y2hhbm5lbC0x")], "Z3JhbnQtdGhyZWU=")
         XCTAssertEqual(r.notifyKey.count, 32)
         XCTAssertTrue(r.buzz)
         XCTAssertEqual(r.island?.startToken, "6162636465666768")

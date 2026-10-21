@@ -16,7 +16,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let token = hexToken(deviceToken)
-        MainActor.assumeIsolated { PushTokens.shared.device = token }
+        MainActor.assumeIsolated {
+            PushTokens.shared.device = token
+            IslandSettings.keptDeviceToken = token
+        }
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
@@ -65,6 +68,7 @@ struct MatchbloxApp: App {
                         open: session,
                         onFailure: { go(.reach(host, $0)) },
                         onHosts: store.all().count > 1 ? { go(.hosts) } : nil,
+                        onIsland: { go(.island) },
                         onScanAgain: { go(.scan) }
                     )
                     .id("\(host.fingerprint)#\(linkOpens)")
@@ -90,7 +94,7 @@ struct MatchbloxApp: App {
                         onScanAgain: { go(.scan) }
                     )
                 case .island:
-                    IslandView(store: store, onBack: { go(Opening.first(hosts: store.all()) == .scan ? .scan : .hosts) })
+                    IslandView(store: store, onBack: { go(Opening.first(hosts: store.all())) })
                 }
             }
             .foregroundStyle(Theme.fg)

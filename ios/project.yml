@@ -45,6 +45,7 @@ targets:
         NSSupportsLiveActivities: true
         MatchbloxAppGroup: group.$(MATCHBLOX_BUNDLE_ID)
         MatchbloxKeychainGroup: $(AppIdentifierPrefix)$(MATCHBLOX_BUNDLE_ID).shared
+        MatchbloxOwnKeychainGroup: $(AppIdentifierPrefix)$(MATCHBLOX_BUNDLE_ID)
         CFBundleURLTypes:
           - CFBundleURLName: com.blox.matchblox.pair
             CFBundleURLSchemes: [matchblox]
