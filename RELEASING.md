@@ -55,15 +55,21 @@ Worker's secrets, never in the repository:
 | `APNS_KEY_ID` | The key's 10-character Key ID |
 | `APNS_TEAM_ID` | The 10-character Team ID |
 | `APNS_BUNDLE_ID` | The app's bundle id |
-| `GRANT_SECRET` | A random secret for the grants: `openssl rand -hex 32` |
+| `GRANT_SECRET` | A random secret for the grants, kept in a file only you can read |
 
 ```sh
 npx wrangler secret put APNS_KEY < AuthKey_XXXXXXXXXX.p8
 npx wrangler secret put APNS_KEY_ID
 npx wrangler secret put APNS_TEAM_ID
 npx wrangler secret put APNS_BUNDLE_ID
-openssl rand -hex 32 | npx wrangler secret put GRANT_SECRET
+# Wrangler never shows a secret again, so keep GRANT_SECRET: the live check
+# below needs it. Keep a copy in the password manager too.
+(umask 077; mkdir -p ~/.config/matchblox && openssl rand -hex 32 | tr -d '\n' > ~/.config/matchblox/grant-secret)
+npx wrangler secret put GRANT_SECRET < ~/.config/matchblox/grant-secret
 ```
+
+If the value is lost, make a new file the same way and put it again before
+the live check (this voids every grant, as below).
 
 A new `GRANT_SECRET` voids every grant: each phone gets new ones the next
 time the app opens. The optional variable `APNS_ENV = "development"` sends to
@@ -113,11 +119,14 @@ the iPad.
 
 3. **Device send.** With the device token of that build (the host keeps it
    in the phone's push registration, `device_token`) and the
-   `GRANT_SECRET` you set:
+   `GRANT_SECRET` kept in `~/.config/matchblox/grant-secret` (Node reads it
+   from the file, so the secret is never in a command line or `ps`):
 
    ```sh
    TOKEN=<device token, hex>
-   GRANT=$(printf 'device:%s' "$TOKEN" | openssl dgst -sha256 -hmac "$GRANT_SECRET" | awk '{print $NF}')
+   GRANT=$(TOKEN="$TOKEN" node -e 'const c = require("crypto"), fs = require("fs");
+     const k = fs.readFileSync(process.env.HOME + "/.config/matchblox/grant-secret", "utf8").trim();
+     process.stdout.write(c.createHmac("sha256", k).update("device:" + process.env.TOKEN).digest("hex"))')
    curl -sS https://matchblox.sh/push/send -H 'Content-Type: application/json' \
      -d '{"target":"'"$TOKEN"'","kind":"device","grant":"'"$GRANT"'","push_type":"alert","priority":10,"payload":{"aps":{"alert":{"title":"matchblox","body":"relay live check"}}}}'
    ```
