@@ -76,6 +76,12 @@ time the app opens. The optional variable `APNS_ENV = "development"` sends to
 Apple's sandbox and accepts development App Attest keys (a build from Xcode);
 without it the relay is production.
 
+The app's entitlements `aps-environment` (push) and the App Attest
+environment are `development` in the repository, which is right for a
+build from Xcode. A TestFlight or App Store build needs `production` for
+both, and a relay with no `APNS_ENV`. A mismatch makes the relay answer
+Apple's `BadDeviceToken`.
+
 ### Rate rules
 
 `wrangler.jsonc` binds three Workers rate limiters, which the relay checks

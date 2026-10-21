@@ -8,6 +8,17 @@ All notable changes to matchblox are in this file. The format follows
 
 ### Added
 
+- **The phone buzzes when an agent waits, with the app closed.** A new
+  wait, a session done and a session out buzz the phone through a small
+  relay that stores nothing. Run `matchblox serve` with the door "Keep
+  matchblox running" and no console needs to be open. Set `[push] off =
+  true` to stop it.
+- **The island shows the session that matters most, or your usage.** The
+  Live Activity has two faces, Sessions and Usage, and the app's `Island`
+  screen sets which one, which host it follows and which hosts buzz. A wait
+  breaks through the Usage face for 60 s.
+- **A tap opens that session.** The activity, its `Answer` and a buzz open
+  the console on that session after Face ID. The app needs iOS 18.
 - **The box opens: pair a device in one gesture.** The door "Pair a
   device" and `DEVICES` on the Machine tab open the pair page in the
   console. It shows the matchbox with the code on its label. When the app

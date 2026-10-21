@@ -559,3 +559,45 @@ Reduce Motion.
 - **Rules:** everything loads from the site itself: `script-src 'self'`,
   `connect-src 'self'`, no inline script or style, no third-party resource.
   No horizontal scroll at 390 px. Check light and dark at 390 and 1280 px.
+
+## 9. The island
+
+The Live Activity and the buzz of the phone, with the app closed (design
+0010). The match glyphs stay §4; the colours are §2; `Tokens.swift` mirrors
+`internal/app/theme.go`. Two faces share one activity, and each update
+carries both, so the choice lives on the phone.
+
+- **Sessions:** the horizontal match of the console. The lock screen has
+  `▰ work-1  ✦ 5 ╿ 2` over the name of the session and its state word.
+  Compact: a small match and the state word. Minimal: the front of the
+  match. Expanded: the match, the percent and `Answer` (or `Open`).
+- **Usage:** the lock screen has `▰ work-1` and, at the right while the
+  stoker runs, `stoker` in its token. Under it one row for each account:
+  its name, then each window as in the Dock: `5h`, the bar, the percent,
+  `· 14:10`. Then the account's forecast: `lasts the week` in `muted`, or
+  `out Fri ~20:00` in `warn`. No match on this face.
+- **Compact Usage:** the burning match of the top session on the left, the
+  tightest window of all accounts on the right (`5h 61%`, coloured as its
+  bar). With nothing on, `▰` stands in for the match. **Minimal:** a short
+  bar of that window. **Expanded:** the rows of the first two accounts, and
+  `Open`.
+- **Bars:** `accent` below 60 %, `warn` from 60 %, `neg` from 90 %, as the
+  Dock.
+- **A wait breaks through.** On the Usage face a new wait shows the
+  Sessions face for 60 s, the match breathing and `╿ waits`, then Usage
+  comes back. While any session waits, minimal Usage shows `╿` over the
+  short bar, and compact shows `╿` before the percent, in `accent`. An agent
+  that waits is never hidden.
+- **Auto:** Usage while the stoker runs, else Sessions.
+- **Unknown numbers:** a session the phone has no name for says
+  `session 12`; an account says `account 3`.
+- **Copy:** `push: <why>` on the Machine tab when a send fails;
+  `island: open matchblox on the phone to renew` when the activity needs the
+  app; `That session ended.` when a tap finds the session gone.
+- **The setting** (`Island` in the app): `Follow` (one host or none, the
+  host opened last by default), `Show` (`Sessions`, `Usage`, `Auto (Usage
+  while the stoker runs)`; `Sessions` by default) and `Buzz` for each host
+  (on). A host out of reach says `work-1 is not reachable: it changes at the
+  next connect`.
+- **One island at a time:** the widget draws nothing for a state whose
+  `host` is not the followed host.

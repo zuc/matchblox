@@ -87,6 +87,53 @@ matchblox devices rm <name>
 You can give the fingerprint instead of the name. See
 [Remote hosts](remote.md#see-and-remove-the-devices-of-a-host).
 
+## The buzz and the island
+
+With the app closed, the phone buzzes when an agent waits, and a Live
+Activity (the island) shows the session that matters most, or your usage.
+It needs iOS 18, and the host must run `matchblox serve`: the door "Keep
+matchblox running" in `matchblox setup` keeps it running with no console
+open. The app registers with the host each time it opens, after Face ID or
+the passcode. Nothing connects to a host from the background.
+
+- **The buzz:** a new wait, a session done and a session out. At most one
+  buzz each 30 s for each host. `Answer` opens the session.
+- **The island:** the match of the session that waits, and its state.
+  Progress moves in steps of 5 %, at most each 3 minutes. The Usage face
+  moves when a window changes by 2 % or more, or resets, at most each 5
+  minutes. A wait breaks through the Usage face for 60 s.
+- **A tap opens the session:** the app asks for Face ID, connects and
+  opens the console with the number of that session. The console opens on it. If it
+  has ended, it says `That session ended.`
+- **The setting:** the `Island` entry in the app's console, next to `Hosts`.
+  `Follow` is the one host that has the island (the host opened last). `Show`
+  is `Sessions`, `Usage` or `Auto (Usage while the stoker runs)`. `Buzz` is
+  on or off for each host. A host out of reach keeps its old setting until
+  the next connect.
+- **If a push fails,** the Machine tab says `push: <why>`. If the island
+  needs the app, it says `island: open matchblox on the phone to renew`. To
+  stop all of it on a host, set `[push] off = true` in the config: there is
+  then no buzz, no island and no connection to the relay.
+- **`matchblox devices`** shows `push` next to a phone that registered, and
+  `island` next to the one that follows this host.
+
+### What leaves the host in clear
+
+An update to a Live Activity cannot be encrypted, so the same rule holds
+for the buzz and both faces. The host sends to the relay, and the relay to
+Apple, only:
+
+- numbers: counts, session and account numbers, and percents;
+- states and progress;
+- times, such as the reset of a window and `out Fri ~20:00`;
+- window short names: `5h`, `wk`;
+- `host`: 8 characters of the fingerprint of the host key.
+
+No session name, account name, provider, path or text leaves the host. The
+app turns a number into a name on the phone, from what it learned in the
+console (`session 12` and `account 3` where it knows none). The relay stores
+nothing and logs no payload. A state is under 2 KB.
+
 ## Without the app
 
 matchblox must be on the host, and the setup step "Add the way back" must
