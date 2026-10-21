@@ -3,9 +3,10 @@
 // grant reaches the Worker's logs.
 //
 //   POST /push/grant    an App Attest attestation (first call) or assertion
-//                       (later) → one grant per item, and an attest grant
-//                       that carries the attested key so later calls need no
-//                       storage.
+//                       (later) → one grant per device or start token, and
+//                       an attest grant that carries the attested key so
+//                       later calls need no storage. No channel: its grant
+//                       comes only with the channel /push/channel makes.
 //   POST /push/channel  an assertion → a new broadcast channel and its grant.
 //   POST /push/send     an event the host sends (internal/push/relay.go) →
 //                       Apple's status, as the HTTP status and in {status}.
@@ -297,6 +298,9 @@ async function grant(request, env, deps) {
   const items = typeof body.client_data === "string" ? safeItems(body.client_data) : body.client_data?.items;
   if (!Array.isArray(items) || items.length > MAX_ITEMS) refuse(400, `client_data.items is a list of at most ${MAX_ITEMS}`);
   for (const it of items) {
+    // A channel's grant comes only from /push/channel, with the channel it
+    // made: a grant here would open any channel id an attested app names.
+    if (it?.kind === "channel") refuse(400, "a channel's grant comes from /push/channel");
     const k = KINDS[it?.kind];
     if (!k || typeof it.value !== "string" || !k.target.test(it.value)) refuse(400, "bad item");
   }

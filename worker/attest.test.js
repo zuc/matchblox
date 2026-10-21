@@ -184,20 +184,36 @@ test("an assertion out of its time window is refused", async () => {
 
 test("a first grant call with an attestation answers an attest grant that later calls use", async () => {
   const { env } = await fakeEnv();
-  const cd = clientData([{ kind: "start", value: "cd".repeat(40) }, { kind: "channel", value: "dHN0LXNyY2gtY2hubA==" }]);
+  const cd = clientData([{ kind: "start", value: "cd".repeat(40) }, { kind: "device", value: "ab".repeat(32) }]);
   const a = await makeAttestation({ appId: APP_ID, clientDataHash: await sha256(enc.encode(cd)) });
   const res = await handlePush(post("/push/grant", { attestation: b64(a.att), key_id: b64(a.keyId), client_data: cd }),
     env, { fetch: fakeFetch(), now, root: a.root });
   assert.equal(res.status, 200);
   const out = await res.json();
   assert.equal(Object.keys(out.grants).length, 2);
-  assert.ok(out.grants["channel:dHN0LXNyY2gtY2hubA=="]);
+  assert.ok(out.grants["start:" + "cd".repeat(40)]);
 
   const cd2 = clientData([{ kind: "device", value: "ef".repeat(32) }]);
   const assertion = await makeAssertion({ priv: a.leafKeys.privateKey, appId: APP_ID, clientData: cd2 });
   const res2 = await handlePush(post("/push/grant", { assertion: b64(assertion), attest_grant: out.attest_grant,
     key_id: b64(a.keyId), client_data: cd2 }), env, { fetch: fakeFetch(), now });
   assert.equal(res2.status, 200);
+});
+
+test("a grant call for a channel is refused: a channel's grant comes only with a new channel", async () => {
+  const { env } = await fakeEnv();
+  const k = await ecKeys("P-256");
+  const raw = await rawPublic(k.publicKey);
+  const attest_grant = await attestGrantFor(env.GRANT_SECRET, raw);
+  for (const items of [[{ kind: "channel", value: "dHN0LXNyY2gtY2hubA==" }],
+    [{ kind: "device", value: "ab".repeat(32) }, { kind: "channel", value: "dHN0LXNyY2gtY2hubA==" }]]) {
+    const cd = clientData(items);
+    const assertion = await makeAssertion({ priv: k.privateKey, appId: APP_ID, clientData: cd });
+    const res = await handlePush(post("/push/grant", { assertion: b64(assertion), attest_grant,
+      key_id: b64(await sha256(raw)), client_data: cd }), env, { fetch: fakeFetch(), now });
+    assert.equal(res.status, 400);
+    assert.match((await res.json()).error, /channel/);
+  }
 });
 
 test("a grant call with an unknown kind or a bad token is refused", async () => {

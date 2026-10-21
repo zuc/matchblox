@@ -126,12 +126,13 @@ A route on the existing Worker (`worker/index.js`, `wrangler.jsonc`), as
 0006 §6.4.2 says. It stores nothing.
 
 - `POST /push/grant`: the app sends an App Attest attestation (the first
-  time) or an assertion (later), and the tokens and the channel id that it
-  wants grants for. The relay checks it with Apple and answers one grant per
-  item: `HMAC-SHA256(relay secret, kind ‖ item)`. A grant opens only its own
-  token or channel.
+  time) or an assertion (later), and the tokens that it wants grants for.
+  The relay checks it with Apple and answers one grant per item:
+  `HMAC-SHA256(relay secret, kind ‖ item)`. A grant opens only its own
+  token or channel. It gives no grant for a channel id.
 - `POST /push/channel`: with a valid App Attest assertion, the relay makes
-  one broadcast channel and answers its id.
+  one broadcast channel and answers its id and its grant, the only way to
+  get a channel's grant.
 - `POST /push/send`: the host sends the target (device token, push-to-start
   token, or channel id), its grant, the push type and the payload. The relay
   checks the grant, signs a JWT with the matchblox APNs key, sends the push
