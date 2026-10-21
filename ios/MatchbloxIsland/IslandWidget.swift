@@ -13,7 +13,8 @@ struct IslandModel {
     let label: String
     let now: Date
 
-    var link: URL? { IslandLook.link(state) }
+    /// Nil on the face `nothing`: the widget URL and the buttons open nothing there.
+    var link: URL? { IslandLook.link(state, face: face) }
 }
 
 /// Reads the Island setting and the names from the App Group, where the app keeps them.

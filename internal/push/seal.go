@@ -31,15 +31,13 @@ func Seal(notifyKey, plain []byte) ([]byte, error) {
 }
 
 // BuzzLine is the text of a buzz: `work-1 · api waits: "Run the migration?"`.
-// The word comes from the item's state (asks, waits, done); the last line is
-// cut to 120 characters and left out when the item has none.
+// A buzz goes only for a wait: the word is asks for a permission, else
+// waits. The last line is cut to 120 characters and left out when the item
+// has none.
 func BuzzLine(hostLabel string, item queue.Item) string {
 	word := "waits"
-	switch item.State {
-	case queue.StatePermission:
+	if item.State == queue.StatePermission {
 		word = "asks"
-	case queue.StateFinished:
-		word = "done"
 	}
 	line := fmt.Sprintf("%s · %s %s", hostLabel, item.Name, word)
 	if item.LastLine == "" {

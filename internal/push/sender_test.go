@@ -678,3 +678,25 @@ func TestARestartDoesNotStartASecondIsland(t *testing.T) {
 		t.Fatalf("a bad starts file: %+v", ev)
 	}
 }
+
+// With no phone left, the last failure goes: nothing is being sent.
+func TestNoPhoneLeftClearsTheStatus(t *testing.T) {
+	r := &fakeRelay{fail: func(Event) error { return &RelayError{Code: http.StatusServiceUnavailable} }}
+	c := &clock{t: t0}
+	p, _ := phone(t, "a", false, true)
+	ps := &livePhones{regs: []Registration{p}}
+	s := NewSender(r, ps, openNumbers(t, t.TempDir()), t.TempDir(), fp, c.now)
+	t.Cleanup(s.Close)
+	s.handle(burning(10))
+	if st := s.Status(); st != "push: relay 503" {
+		t.Fatalf("status %q", st)
+	}
+	ps.mu.Lock()
+	ps.regs = nil
+	ps.mu.Unlock()
+	c.add(time.Minute)
+	s.handle(burning(10))
+	if st := s.Status(); st != "" {
+		t.Fatalf("status with no phone %q", st)
+	}
+}

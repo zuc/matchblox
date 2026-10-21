@@ -148,8 +148,7 @@ func TestTheBuzzLineSaysWhoWaitsAndWhy(t *testing.T) {
 	}{
 		{queue.Item{Name: "api", State: queue.StateQuestion, LastLine: "Run the migration?"}, `work-1 · api waits: "Run the migration?"`},
 		{queue.Item{Name: "api", State: queue.StatePermission, LastLine: "Run rm?"}, `work-1 · api asks: "Run rm?"`},
-		{queue.Item{Name: "api", State: queue.StateFinished, LastLine: "Merged."}, `work-1 · api done: "Merged."`},
-		{queue.Item{Name: "api", State: queue.StateFinished}, `work-1 · api done`},
+		{queue.Item{Name: "api", State: queue.StateQuestion}, `work-1 · api waits`},
 		{queue.Item{Name: "api", State: queue.StateQuestion, LastLine: strings.Repeat("é", 130)}, `work-1 · api waits: "` + strings.Repeat("é", 120) + `"`},
 	}
 	for _, c := range cases {

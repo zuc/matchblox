@@ -87,6 +87,11 @@ public enum IslandLook {
         return OpenLink(host: s.host, session: top.n)?.url
     }
 
+    /// The link of one render: none for a face that shows nothing, so a tap there opens nothing.
+    public static func link(_ s: IslandState, face: Face) -> URL? {
+        face == .nothing ? nil : link(s)
+    }
+
     // MARK: usage
 
     /// The bar of the console's dock: 8 cells, `▰` filled and `▱` empty.

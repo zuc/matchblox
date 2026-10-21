@@ -97,7 +97,7 @@ open. The app registers with the host each time it opens, after Face ID or
 the passcode. Nothing connects to a host from the background.
 
 - **The buzz:** a new wait, when a session asks for a permission or a
-  choice. At most one buzz each 30 s for each host. `Answer` opens the
+  choice. At most one buzz each 30 s for each host. A tap on it opens the
   session.
 - **The island:** the match of the session that matters most, and its state.
   A new wait, done or out goes at once. Progress moves in steps of 5 %, at
@@ -144,8 +144,9 @@ The relay and Apple see only ciphertext, the session number and `host`. The
 alert that Apple shows before the extension runs says only `matchblox`, with
 a sound; the start of an island has the title and the body `matchblox`.
 
-The app turns a number into a name on the phone, from what it learned in the
-console (`session 12` and `account 3` where it knows none). The relay stores
+The app turns a number into a name on the phone, from the names the host
+sends back when the app registers, over ssh (`session 12` and `account 3`
+where it knows none). The relay stores
 nothing and logs no payload. A state is under 2 KB.
 
 ## Without the app

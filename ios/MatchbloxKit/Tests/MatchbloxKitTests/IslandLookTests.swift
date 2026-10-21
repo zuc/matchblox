@@ -66,6 +66,14 @@ final class IslandLookTests: XCTestCase {
         XCTAssertNil(IslandLook.link(none))
     }
 
+    /// A face that shows nothing (a host not followed) opens nothing on a tap.
+    func testNothingShownLinksNowhere() throws {
+        let s = try fixture()
+        XCTAssertNil(IslandLook.link(s, face: .nothing))
+        XCTAssertEqual(IslandLook.link(s, face: .sessions), IslandLook.link(s))
+        XCTAssertEqual(IslandLook.link(s, face: .usage), IslandLook.link(s))
+    }
+
     func testTheUsageCompactShowsTheTightestAndTheWait() throws {
         var s = try fixture()
         let c = try XCTUnwrap(IslandLook.usageCompact(s))

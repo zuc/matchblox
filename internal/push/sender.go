@@ -180,6 +180,9 @@ func (s *Sender) run() {
 func (s *Sender) handle(doc state.Doc) {
 	now := s.now()
 	regs := s.phones.List()
+	if len(regs) == 0 {
+		s.clear() // nothing is sent: an old failure says nothing now
+	}
 	s.buzz(doc, regs, now)
 	s.island(doc, regs, now)
 	renew := false

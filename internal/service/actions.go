@@ -83,11 +83,14 @@ func (a *acts) end(key string, ran bool) {
 const notTheBuilders = "only the stoker and the sessions it drives act from an agent's pane: this one is neither"
 
 // NamesAct asks what each island number is called now. A phone that
-// registers through the gate gets the answer; it changes nothing.
+// registers through the gate gets the answer. It changes nothing but give a
+// number to a current session or account that had none.
 const NamesAct = "push:names"
 
 func (s *Service) act(ctx context.Context, a proto.Act) proto.Result {
 	if a.RecID == NamesAct {
+		// Before the agents-pane gate: it only reads names the socket already
+		// serves in every doc, so an agent's pane learns nothing new from it.
 		return s.names() // it reads; the stoker goes on resting
 	}
 	if strings.HasPrefix(a.RecID, focusPrefix) {
