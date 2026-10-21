@@ -65,7 +65,7 @@ func door(t *testing.T, e Env, id string) doors.Door {
 func TestDoorsFirstRun(t *testing.T) {
 	e := env(t)
 	got := ids(Doors(e))
-	if want := []string{doors.Tmux, doors.Hooks, doors.Limits, doors.SafetyNet, doors.WayBack, doors.Guide, doors.Night, doors.Ways}; !slices.Equal(got, want) {
+	if want := []string{doors.Tmux, doors.Hooks, doors.Limits, doors.SafetyNet, doors.WayBack, doors.KeepRunning, doors.Guide, doors.Night, doors.Ways}; !slices.Equal(got, want) {
 		t.Fatalf("doors = %v, want %v", got, want)
 	}
 	if d := door(t, e, doors.Tmux); !slices.Equal(d.Term, []string{"sudo", "sh", "-c", "apt-get update && apt-get install -y tmux"}) {
@@ -76,7 +76,7 @@ func TestDoorsFirstRun(t *testing.T) {
 func TestNoClaudeNoHooksOrGuide(t *testing.T) {
 	e := env(t)
 	e.LookPath = func(string) (string, error) { return "", errors.New("not found") }
-	if got := ids(Doors(e)); !slices.Equal(got, []string{doors.Tmux, doors.WayBack, doors.Ways}) {
+	if got := ids(Doors(e)); !slices.Equal(got, []string{doors.Tmux, doors.WayBack, doors.KeepRunning, doors.Ways}) {
 		t.Fatalf("doors = %v", got)
 	}
 }
@@ -354,7 +354,7 @@ func TestDoneDoorFolds(t *testing.T) {
 	open(t, e, doors.Limits)
 	open(t, e, doors.SafetyNet)
 	open(t, e, doors.WayBack)
-	if got := ids(Doors(e)); !slices.Equal(got, []string{doors.Guide, doors.Night, doors.Ways}) {
+	if got := ids(Doors(e)); !slices.Equal(got, []string{doors.KeepRunning, doors.Guide, doors.Night, doors.Ways}) {
 		t.Fatalf("open doors = %v, want [guide night ways]", got)
 	}
 }

@@ -32,7 +32,7 @@ func (m Model) doorAction(d doors.Door) *action {
 	if d.ID == doors.Night {
 		return nightDoorAction(d)
 	}
-	if d.Term != nil {
+	if d.RunsTerm() {
 		argv, where := d.Term, "in this terminal"
 		if d.ID == doors.Guide && !m.opt.OutsideTmux {
 			argv, where = doors.GuideArgv(true), "in a new tmux window"
@@ -152,7 +152,7 @@ func (m Model) previewDoor() (doors.Door, bool) {
 }
 
 func (m Model) previewLines(d doors.Door) []string {
-	if d.Term != nil && m.pending != nil {
+	if d.RunsTerm() && m.pending != nil {
 		return []string{shellLine(m.pending.steps[0])} // the exact argv this console runs
 	}
 	if m.alsoOn(d) {

@@ -35,6 +35,10 @@ type Env struct {
 	// Source loads a tmux config into the running server. ErrNoServer: no
 	// server runs, the next one reads the file.
 	Source func(conf string) error
+	// Run runs a command of a door that writes a file (launchctl, systemctl).
+	// Nil: run it on this machine.
+	Run func(argv []string) error
+	UID int // the user the launchd domain gui/<uid> is for
 }
 
 var (
@@ -52,6 +56,9 @@ func Doors(e Env) []doors.Door {
 		ds = append(ds, hooksDoor(e), limitsDoor(e), safetyNetDoor(e))
 	}
 	ds = append(ds, wayBackDoor(e))
+	if d := keepRunningDoor(e); d.ID != "" {
+		ds = append(ds, d)
+	}
 	if usesClaude(e) {
 		ds = append(ds, guideDoor(), nightDoor(e))
 	}
@@ -75,6 +82,8 @@ func Open(e Env, id, seen string, also bool) (backup string, err error) {
 		return TurnOnSafetyNet(settingsPath(e), e.compactAt(), seen)
 	case doors.WayBack:
 		return AddWayBack(tmuxConf(e), seen, also, e.Source)
+	case doors.KeepRunning:
+		return "", openKeepRunning(e, seen)
 	case doors.Ways:
 		return "", WriteWays(waysPath(e), seen)
 	case doors.Tmux, doors.Guide:
@@ -83,7 +92,7 @@ func Open(e Env, id, seen string, also bool) (backup string, err error) {
 	return "", fmt.Errorf("no door %q", id)
 }
 
-var known = []string{doors.Tmux, doors.Hooks, doors.Limits, doors.SafetyNet, doors.WayBack, doors.Guide, doors.Night, doors.Ways}
+var known = []string{doors.Tmux, doors.Hooks, doors.Limits, doors.SafetyNet, doors.WayBack, doors.KeepRunning, doors.Guide, doors.Night, doors.Ways}
 
 // Close hides a door from the console; `matchblox setup` shows it again.
 func Close(e Env, id string) error {

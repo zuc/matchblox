@@ -28,6 +28,7 @@ func liveSetup(compactAt float64) *setup.Env {
 		Exe:       invokedPath(os.Args[0]),
 		StateDir:  filepath.Dir(state.Path()),
 		Root:      os.Geteuid() == 0,
+		UID:       os.Getuid(),
 		CompactAt: compactAt,
 		Getenv:    os.Getenv, LookPath: exec.LookPath, Source: tmuxSource,
 	}
@@ -135,7 +136,7 @@ func setupDoors(e setup.Env, in io.Reader, out io.Writer, run func(argv []string
 			}
 			continue
 		}
-		if d.Term != nil {
+		if d.RunsTerm() {
 			if err := run(d.Term); err != nil {
 				say("failed: %v\n", err)
 			}

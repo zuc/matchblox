@@ -19,6 +19,9 @@ const (
 	Guide     = "guide"
 	Night     = "night"
 	Ways      = "ways"
+	// KeepRunning writes a user unit, then runs Term: the service writes
+	// the file and runs the command, so the terminal never runs it.
+	KeepRunning = "keeprunning"
 )
 
 type Door struct {
@@ -49,6 +52,10 @@ type Also struct {
 	Label   string `json:"label"`
 	Preview string `json:"preview"`
 }
+
+// RunsTerm: the builder's terminal runs the door's Term. KeepRunning shows
+// its command but runs it itself, after it writes the unit.
+func (d Door) RunsTerm() bool { return d.Term != nil && d.ID != KeepRunning }
 
 // Open is a door the console shows: not done and not closed.
 func (d Door) Open() bool { return !d.Done && !d.Closed }

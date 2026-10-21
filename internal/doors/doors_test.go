@@ -94,3 +94,12 @@ func TestGuideArgv(t *testing.T) {
 		t.Fatalf("in tmux: %q, want %q", got, want)
 	}
 }
+
+func TestOnlyTheTerminalDoorsRunTermThere(t *testing.T) {
+	if !(Door{ID: Tmux, Term: []string{"brew"}}).RunsTerm() || (Door{ID: Ways}).RunsTerm() {
+		t.Fatal("a door with a Term runs it in the terminal")
+	}
+	if (Door{ID: KeepRunning, Term: []string{"launchctl"}}).RunsTerm() {
+		t.Fatal("KeepRunning shows its command and runs it after the file")
+	}
+}

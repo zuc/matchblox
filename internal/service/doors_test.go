@@ -55,7 +55,7 @@ func TestDoorsInTheSnapshot(t *testing.T) {
 	s, _ := doorsTest(t)
 	ctx := run(t, s)
 	c, _ := connect(t, ctx, s)
-	if got := openDoors(snapshot(t, c)); !slices.Equal(got, []string{doors.Hooks, doors.Limits, doors.SafetyNet, doors.WayBack, doors.Guide, doors.Night, doors.Ways}) {
+	if got := openDoors(snapshot(t, c)); !slices.Equal(got, []string{doors.Hooks, doors.Limits, doors.SafetyNet, doors.WayBack, doors.KeepRunning, doors.Guide, doors.Night, doors.Ways}) {
 		t.Fatalf("open doors = %v", got)
 	}
 }
