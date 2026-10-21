@@ -72,11 +72,11 @@ type IslandReg struct {
 	Channel    string `json:"channel"`
 }
 
-// Registration is a request the host keeps, with the phone's fingerprint and
-// when it came. It lives here, not in setup: setup imports push, and push
-// never imports setup.
+// Registration is a request the host keeps, with the id of the phone's
+// device line (setup.ValidPairID) and when it came. It lives here, not in
+// setup: setup imports push, and push never imports setup.
 type Registration struct {
-	Fingerprint string `json:"fingerprint"`
+	Device string `json:"device"`
 	RegisterRequest
 	At time.Time `json:"at"`
 }

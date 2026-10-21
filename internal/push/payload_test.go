@@ -63,14 +63,14 @@ func TestThePayloadsRoundTripTheirFixtures(t *testing.T) {
 }
 
 // TestARegistrationHoldsTheRequestInline: the request's fields sit beside the
-// fingerprint and the time, not under a key.
+// device id and the time, not under a key.
 func TestARegistrationHoldsTheRequestInline(t *testing.T) {
 	var r Registration
-	in := `{"fingerprint":"SHA256:x","device_token":"tok","grants":{},"notify_key":"AQ==","buzz":true,"at":"2026-10-21T10:00:00Z"}`
+	in := `{"device":"0123456789ab","device_token":"tok","grants":{},"notify_key":"AQ==","buzz":true,"at":"2026-10-21T10:00:00Z"}`
 	if err := json.Unmarshal([]byte(in), &r); err != nil {
 		t.Fatal(err)
 	}
-	if r.DeviceToken != "tok" || !r.Buzz || r.Fingerprint != "SHA256:x" {
+	if r.DeviceToken != "tok" || !r.Buzz || r.Device != "0123456789ab" {
 		t.Fatalf("got %+v", r)
 	}
 	out, _ := json.Marshal(r)

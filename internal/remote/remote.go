@@ -38,6 +38,10 @@ const ServeCommand = "matchblox serve --stdio"
 // ConsoleCommand is what a phone asks the host's gate to run.
 const ConsoleCommand = "matchblox console"
 
+// PushRegisterCommand is what a phone asks the host's gate to run to be
+// pushed to: one request line in, one reply line out.
+const PushRegisterCommand = "matchblox push register"
+
 // install is the one install command, with no data in it. MATCHBLOX_NO_START
 // keeps the script from starting a console inside this one.
 const install = "curl -fsSL https://matchblox.sh | MATCHBLOX_NO_START=1 sh"

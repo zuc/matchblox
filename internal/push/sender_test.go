@@ -64,7 +64,7 @@ func phone(t *testing.T, name string, buzz, island bool) (Registration, *ecdh.Pr
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := Registration{Fingerprint: "SHA256:" + name, At: t0, RegisterRequest: RegisterRequest{
+	r := Registration{Device: name, At: t0, RegisterRequest: RegisterRequest{
 		DeviceToken: "dev-" + name, NotifyKey: k.PublicKey().Bytes(), Buzz: buzz,
 		Grants: map[string]string{"device:dev-" + name: "g-dev-" + name},
 	}}

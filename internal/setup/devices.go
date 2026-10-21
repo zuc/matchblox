@@ -224,7 +224,8 @@ func Devices(home string) ([]Device, error) {
 
 // RemoveDevice takes out the line of one phone or laptop, by its name (a
 // laptop's name is its key comment) or, when names repeat, by its
-// fingerprint. A device with an id also loses its note of MarkDeviceIn.
+// fingerprint. A device with an id also loses its note of MarkDeviceIn and
+// its registration for pushes.
 func RemoveDevice(home, name string) (backup string, err error) {
 	if name == "" {
 		return "", errors.New("give a name or a fingerprint from matchblox devices")
@@ -249,6 +250,7 @@ func RemoveDevice(home, name string) (backup string, err error) {
 	}, func() {
 		if gone != "" {
 			_ = os.Remove(deviceNote(home, gone))
+			_ = os.Remove(pushNote(home, gone))
 		}
 	})
 }

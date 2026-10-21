@@ -31,7 +31,7 @@ func gateMain(args []string) error {
 		os.Exit(126)
 	}
 	orig := os.Getenv("SSH_ORIGINAL_COMMAND")
-	argv, err := gateDecision(mode, orig)
+	argv, err := gateDecision(mode, id, orig)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "matchblox gate: refused %q: %v\n", orig, err)
 		os.Exit(126)
@@ -64,12 +64,18 @@ const phoneMode = "phone"
 // the console and goHome's fixed argv. A laptop key (mode "") gets the
 // service stream alone; the phone mode also gets the console, which attaches
 // the shared home session, where goHome already decides tmux or in place. An
-// unknown mode gets nothing.
-func gateDecision(mode, orig string) (argv []string, err error) {
+// unknown mode gets nothing. A phone also registers for pushes, by the id of
+// its key line (id), never by anything in the request; a phone line from
+// before ids is refused until the service gives it one.
+func gateDecision(mode, id, orig string) (argv []string, err error) {
 	if mode != "" && mode != phoneMode {
 		return nil, errors.New("this key line has an unknown gate mode; run matchblox connect or matchblox pair again")
 	}
 	switch {
+	case orig == remote.PushRegisterCommand && mode == phoneMode && setup.ValidPairID(id):
+		return []string{"push", "register", id}, nil
+	case orig == remote.PushRegisterCommand && mode == phoneMode:
+		return nil, errors.New("this phone's key line is old; open matchblox serve once, then try again")
 	case orig == remote.ServeCommand:
 		return []string{"serve", "--stdio"}, nil
 	case orig == remote.ConsoleCommand && mode == phoneMode:

@@ -23,6 +23,7 @@ import (
 	"github.com/blox-eng/matchblox/internal/idle"
 	"github.com/blox-eng/matchblox/internal/limits"
 	"github.com/blox-eng/matchblox/internal/proto"
+	"github.com/blox-eng/matchblox/internal/push"
 	"github.com/blox-eng/matchblox/internal/queue"
 	"github.com/blox-eng/matchblox/internal/sample"
 	"github.com/blox-eng/matchblox/internal/setup"
@@ -116,6 +117,9 @@ type Service struct {
 	Now func() time.Time
 	// Ships follows the pull requests sessions drive. Nil: no ships.
 	Ships ShipsSource
+	// PushNumbers are the island's numbers of sessions and accounts; the
+	// names act names them. Nil: it names nothing.
+	PushNumbers *push.Numbers
 
 	// alone is when the last console closed; zero while one is open. A new
 	// service starts alone.

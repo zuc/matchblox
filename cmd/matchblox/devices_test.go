@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/blox-eng/matchblox/internal/push"
 	"github.com/blox-eng/matchblox/internal/setup"
 )
 
@@ -46,8 +47,8 @@ func TestDevicesListAndRemove(t *testing.T) {
 	if err := devicesCmd(nil, home, &out); err != nil {
 		t.Fatal(err)
 	}
-	want := "phone   Jordan's iPhone  " + fp(t, phoneKey1) + "\n" +
-		"phone   iPad             " + fp(t, phoneKey2) + "\n" +
+	want := "phone   Jordan's iPhone  " + fp(t, phoneKey1) + "  buzz off  island no\n" +
+		"phone   iPad             " + fp(t, phoneKey2) + "  buzz off  island no\n" +
 		"laptop  matchblox        " + fp(t, laptopKey) + "\n"
 	if out.String() != want {
 		t.Fatalf("list:\n%s\nwant:\n%s", out.String(), want)
@@ -99,5 +100,38 @@ func TestDevicesWithoutKeysSaysHowToAddOne(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "matchblox pair") {
 		t.Fatalf("empty list: %q", out.String())
+	}
+}
+
+// Each phone shows whether it buzzes and whether it carries the island; a
+// phone that never registered does neither.
+func TestDevicesListShowsPushAndIsland(t *testing.T) {
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(home, ".ssh"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	const id1, id2 = "0123456789ab", "ba9876543210"
+	keys := `restrict,pty,command="'` + testExe + `' gate phone ` + id1 + `" ` + phoneKey1 + " matchblox:phone:Desk\n" +
+		`restrict,pty,command="'` + testExe + `' gate phone ` + id2 + `" ` + phoneKey2 + " matchblox:phone:iPad\n"
+	if err := os.WriteFile(filepath.Join(home, ".ssh", "authorized_keys"), []byte(keys), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := setup.Authorize(home, testExe, laptopKey+" matchblox"); err != nil {
+		t.Fatal(err)
+	}
+	r := push.Registration{Device: id1, RegisterRequest: push.RegisterRequest{DeviceToken: "tok", Buzz: true,
+		Island: &push.IslandReg{StartToken: "s", Channel: "c"}}}
+	if err := setup.Register(home, r); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := devicesCmd(nil, home, &out); err != nil {
+		t.Fatal(err)
+	}
+	want := "phone   Desk       " + fp(t, phoneKey1) + "  buzz on   island yes\n" +
+		"phone   iPad       " + fp(t, phoneKey2) + "  buzz off  island no\n" +
+		"laptop  matchblox  " + fp(t, laptopKey) + "\n"
+	if out.String() != want {
+		t.Fatalf("list:\n%s\nwant:\n%s", out.String(), want)
 	}
 }

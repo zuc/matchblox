@@ -82,7 +82,14 @@ func (a *acts) end(key string, ran bool) {
 // hand rules are user-wide, so any session may call the CLI unprompted.
 const notTheBuilders = "only the stoker and the sessions it drives act from an agent's pane: this one is neither"
 
+// NamesAct asks what each island number is called now. A phone that
+// registers through the gate gets the answer; it changes nothing.
+const NamesAct = "push:names"
+
 func (s *Service) act(ctx context.Context, a proto.Act) proto.Result {
+	if a.RecID == NamesAct {
+		return s.names() // it reads; the stoker goes on resting
+	}
 	// A session the stoker drove speaks for the stoker: what it sends
 	// counts and drives, and it gives no go.
 	agent := s.agentsPane(a)
@@ -556,4 +563,15 @@ func (s *Service) setDoors(gen uint64, ds []doors.Door) {
 	if s.gen == gen {
 		s.cur.Doors = ds
 	}
+}
+
+func (s *Service) names() proto.Result {
+	s.mu.Lock()
+	sessions, accounts := s.cur.Sessions, s.cur.Limits
+	s.mu.Unlock()
+	n := &proto.Names{Sessions: map[int]string{}, Accounts: map[int]string{}}
+	if s.PushNumbers != nil {
+		n.Sessions, n.Accounts = s.PushNumbers.Names(sessions, accounts)
+	}
+	return proto.Result{Names: n}
 }

@@ -100,6 +100,15 @@ type Result struct {
 	Ran     [][]string `json:"ran,omitempty"`
 	Skipped []string   `json:"skipped,omitempty"`
 	Err     string     `json:"err,omitempty"`
+	// Names answers the names act: what each number of the island is
+	// called now.
+	Names *Names `json:"names,omitempty"`
+}
+
+// Names are the session and account names by their island numbers.
+type Names struct {
+	Sessions map[int]string `json:"sessions"`
+	Accounts map[int]string `json:"accounts"`
 }
 
 type Error struct {

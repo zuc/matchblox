@@ -122,6 +122,8 @@ func run(args []string) error {
 			return pairCmd(ctx, args[1:], os.Stdout, time.Now)
 		case "devices":
 			return devicesCmd(args[1:], home(), os.Stdout)
+		case "push":
+			return pushCmd(args[1:])
 		case "connect":
 			return liveConnect(args[1:])
 		}
@@ -507,6 +509,13 @@ func newService(cfg config.Config, root string) *service.Service {
 		s.HistoryLog = cfg.History.Log
 	}
 	s.Exe = invokedPath(os.Args[0])
+	// A phone paired before ids gets one, so it can register for pushes.
+	// stderr is serve.log when the console starts the service.
+	if n, err := setup.UpgradePhoneLines(home()); err != nil {
+		fmt.Fprintln(os.Stderr, "matchblox: phone lines:", err)
+	} else if n > 0 {
+		fmt.Fprintf(os.Stderr, "matchblox: upgraded %d phone lines\n", n)
+	}
 	s.Setup = liveSetup(cfg.Sessions.CompactAt)
 	s.Ways = config.WaysPath()
 	s.LimitsLog = &limits.Store{Path: filepath.Join(filepath.Dir(s.StatePath), "limits.jsonl")}

@@ -7,12 +7,14 @@ import (
 	"slices"
 	"text/tabwriter"
 
+	"github.com/blox-eng/matchblox/internal/push"
 	"github.com/blox-eng/matchblox/internal/setup"
 )
 
 const devicesUsage = "usage: matchblox devices [rm <name|fingerprint>]"
 
-// devicesCmd lists the keys that open this host, phones first, or removes one.
+// devicesCmd lists the keys that open this host, phones first, each phone
+// with whether it buzzes and carries the island, or removes one.
 func devicesCmd(args []string, home string, out io.Writer) error {
 	switch {
 	case len(args) == 0:
@@ -46,9 +48,30 @@ func listDevices(home string, out io.Writer) error {
 		}
 		return 1
 	})
+	regs, err := setup.Registrations(home)
+	if err != nil {
+		return err
+	}
+	byID := map[string]push.Registration{}
+	for _, r := range regs {
+		byID[r.Device] = r
+	}
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	for _, d := range devices {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", d.Kind, d.Name, d.Fingerprint)
+		if d.Kind != "phone" {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", d.Kind, d.Name, d.Fingerprint)
+			continue
+		}
+		// A phone with no registration is pushed nothing.
+		r, ok := byID[d.ID]
+		buzz, island := "buzz off", "island no"
+		if ok && d.ID != "" && r.Buzz {
+			buzz = "buzz on"
+		}
+		if ok && d.ID != "" && r.Island != nil {
+			island = "island yes"
+		}
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", d.Kind, d.Name, d.Fingerprint, buzz, island)
 	}
 	return w.Flush()
 }
