@@ -18,6 +18,7 @@ var swiftTokens = map[string]string{
 	"matchEmber": "match-ember",
 	"markTop":    "mark-top", "markLeft": "mark-left", "markRight": "mark-right",
 	"markTray": "mark-tray", "markStriker": "mark-striker", "markStick": "mark-stick",
+	"night": "night",
 }
 
 func TestTokensSwiftMatchesTheConsole(t *testing.T) {

@@ -120,6 +120,7 @@ type aps struct {
 		AttributesType string          `json:"attributes-type"`
 		Attributes     json.RawMessage `json:"attributes"`
 		Channel        string          `json:"input-push-channel"`
+		StaleDate      int64           `json:"stale-date"`
 	} `json:"aps"`
 }
 
@@ -213,6 +214,10 @@ func TestANewWaitUpdatesTheIslandAtOnce(t *testing.T) {
 	a := liveOf(t, ev[0])
 	if a.APS.Event != "update" || a.APS.Timestamp != c.t.Unix() || a.APS.State.Wait != 1 || a.APS.State.Top.State != "waits" {
 		t.Fatalf("payload %s", ev[0].Payload)
+	}
+	// The wait breaks through the Usage face for 60 s: the activity goes stale then.
+	if want := t0.Add(time.Minute).Unix(); a.APS.StaleDate != want {
+		t.Fatalf("stale-date %d, want %d", a.APS.StaleDate, want)
 	}
 	c.add(time.Second)
 	s.handle(d)

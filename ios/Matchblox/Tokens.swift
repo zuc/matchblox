@@ -26,6 +26,8 @@ enum Tokens {
     static let markTray = Color(hex: 0x15120E)
     static let markStriker = Color(hex: 0x5A4128)
     static let markStick = Color(hex: 0xC9A877)
+    /// The stoker word.
+    static let night = Color(hex: 0x7C8BB0)
 }
 
 extension Color {

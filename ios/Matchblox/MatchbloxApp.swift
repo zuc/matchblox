@@ -1,12 +1,14 @@
 import MatchbloxKit
 import SwiftUI
+import UserNotifications
 
 /// Asks iOS for the push tokens at launch and ends stray activities. Nothing here connects to a host.
-final class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
         MainActor.assumeIsolated {
             PushTokens.shared.begin()
             IslandSettings.endStrayActivities()
@@ -24,6 +26,31 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         islandLog.error("no device token: \(String(describing: error), privacy: .public)")
+    }
+
+    /// A tapped buzz opens its session through the link handling of a tapped island:
+    /// `userInfo["open"]`, which the buzz extension sets, else the buzz's host and number.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let userInfo = response.notification.request.content.userInfo
+        let url = (userInfo["open"] as? String).flatMap(URL.init(string:)).flatMap(OpenLink.init(url:))?.url
+            ?? BuzzPayload.event(userInfo).flatMap { OpenLink(host: $0.host, session: $0.n) }?.url
+        if let url {
+            Task { @MainActor in UIApplication.shared.open(url) }
+        }
+        completionHandler()
+    }
+
+    /// A buzz that comes while the app is open shows as a banner too.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
     }
 }
 

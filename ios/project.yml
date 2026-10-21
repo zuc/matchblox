@@ -123,6 +123,9 @@ targets:
         MATCHBLOX_BUNDLE_ID: com.blox.matchblox
         PRODUCT_BUNDLE_IDENTIFIER: $(MATCHBLOX_BUNDLE_ID).buzz
         CODE_SIGN_ENTITLEMENTS: MatchbloxBuzz/MatchbloxBuzz.entitlements
+    dependencies:
+      - package: MatchbloxKit
+        product: MatchbloxKit
 
 schemes:
   Matchblox:

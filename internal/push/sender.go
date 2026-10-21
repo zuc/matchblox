@@ -16,6 +16,7 @@ import (
 // The rates, from design 0010 §3.6.
 const (
 	buzzEvery     = 30 * time.Second
+	breakThrough  = 60 * time.Second // a wait breaks through the Usage face
 	progressEvery = 3 * time.Minute
 	usageEvery    = 5 * time.Minute
 	usageStep     = 2 // whole percent
@@ -227,6 +228,21 @@ type liveAPS struct {
 	Attributes     *islandAttributes `json:"attributes,omitempty"`
 	Channel        string            `json:"input-push-channel,omitempty"`
 	Alert          *startAlert       `json:"alert,omitempty"`
+	// StaleDate is the end of a wait's 60 s break-through through the Usage
+	// face, while it is ahead: iOS draws the activity again then.
+	StaleDate int64 `json:"stale-date,omitempty"`
+}
+
+// staleDate is the Unix time a wait stops breaking through, or 0.
+func staleDate(cs ContentState, now time.Time) int64 {
+	if cs.WaitAt.IsZero() {
+		return 0
+	}
+	end := cs.WaitAt.Add(breakThrough)
+	if !end.After(now) {
+		return 0
+	}
+	return end.Unix()
 }
 
 type islandAttributes struct {
@@ -266,7 +282,7 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 		} else {
 			b := liveBody{APS: liveAPS{Timestamp: now.Unix(), Event: "start", State: cs,
 				AttributesType: "IslandAttributes", Attributes: &islandAttributes{Host: cs.Host},
-				Channel: ch, Alert: &startAlert{Title: "matchblox", Body: "matchblox"}}}
+				Channel: ch, Alert: &startAlert{Title: "matchblox", Body: "matchblox"}, StaleDate: staleDate(cs, now)}}
 			pl, _ := json.Marshal(b)
 			err := s.send(r, Event{Target: tok, Kind: "start", PushType: "liveactivity", Priority: 10, Payload: pl})
 			var re *RelayError
@@ -288,7 +304,7 @@ func (s *Sender) island(doc state.Doc, regs []Registration, now time.Time) {
 		}
 		channels[ch] = true
 		updated = true
-		pl, _ := json.Marshal(liveBody{APS: liveAPS{Timestamp: now.Unix(), Event: "update", State: cs}})
+		pl, _ := json.Marshal(liveBody{APS: liveAPS{Timestamp: now.Unix(), Event: "update", State: cs, StaleDate: staleDate(cs, now)}})
 		s.send(r, Event{Target: ch, Kind: "channel", PushType: "liveactivity", Priority: prio, Payload: pl})
 	}
 	if !updated && !startedAll {

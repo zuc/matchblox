@@ -70,6 +70,9 @@ struct IslandView: View {
         }
         .onChange(of: prefs) { old, new in
             IslandSettings.prefs = new
+            if old.show != new.show || old.follow != new.follow {
+                IslandSettings.refreshActivities()
+            }
             let concerned = IslandPrefs.concerned(old, new, hosts: hosts.map(\.fingerprint))
             guard !concerned.isEmpty else { return }
             pending.formUnion(concerned)

@@ -46,8 +46,8 @@ final class PushTokens {
 /// the buzz extension opens buzzes with it.
 enum NotifyKey {
     static let group = Bundle.main.object(forInfoDictionaryKey: "MatchbloxKeychainGroup") as? String
-    private static let service = "com.blox.matchblox.notify"
-    private static let account = "notify-key"
+    private static let service = NotifyKeyItem.service
+    private static let account = NotifyKeyItem.account
 
     static func publicKey() -> Data? {
         if let raw = Keychain.get(service: service, account: account, group: group),
