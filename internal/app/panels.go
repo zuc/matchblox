@@ -159,6 +159,9 @@ func (m Model) procs(w int) body {
 		b.add(-1, fit(" "+st.label.Render("x ")+st.muted.Render(strings.Join(o.Kill, " ")), w))
 	}
 
+	dv := m.devicesBody(w)
+	b.lines, b.rows = append(b.lines, dv.lines...), append(b.rows, dv.rows...)
+
 	b.add(-1, m.region("top processes", w)...)
 	b.add(-1, m.topRows(w)...)
 	return b

@@ -70,6 +70,9 @@ func (m Model) render() string {
 	if m.splashing() {
 		return m.splashView(w)
 	}
+	if m.pair.owns() {
+		return m.pairView(w)
+	}
 	if m.night() {
 		m.st = nightStyles()
 		f := m.frame(w)
@@ -494,6 +497,9 @@ func (m Model) keyLine(w int) (string, []span) {
 			confirm = st.muted.Render("↓ the rest, then ") + st.neg.Render("y")
 		}
 		return fit(" "+st.label.Render("RUN ")+st.text.Render(m.pending.String())+"   "+st.muted.Render(confirm), w), nil
+	}
+	if m.pair.strips() && (m.pair.beat == 4 || m.flash == "") {
+		return fit(" "+st.text.Render(m.pair.line), w), nil
 	}
 	if m.flash != "" {
 		return fit(" "+st.text.Render(m.flash), w), nil

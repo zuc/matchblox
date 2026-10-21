@@ -576,7 +576,7 @@ func TestPhoneKeyInUse(t *testing.T) {
 		"other key":        {phoneKey2 + " me\n", false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			next, err := withPhone([]byte(c.line), "/opt/mb/matchblox", phoneKey, "iPhone")
+			next, err := withPhone([]byte(c.line), "/opt/mb/matchblox", phoneKey, "iPhone", "")
 			if c.inUse {
 				if !errors.Is(err, ErrKeyInUse) {
 					t.Fatalf("err = %v, want ErrKeyInUse", err)
@@ -630,7 +630,7 @@ func TestTakeClaimNamesThePhoneOfTheIDOnce(t *testing.T) {
 		t.Fatal("a claim for an id that no phone used")
 	}
 	fp, _ := Fingerprint(phoneKey)
-	if d, ok := TakeClaim(home, "0123456789ab"); !ok || d != (Device{"phone", "iPhone", fp}) {
+	if d, ok := TakeClaim(home, "0123456789ab"); !ok || d != (Device{Kind: "phone", Name: "iPhone", Fingerprint: fp, ID: "0123456789ab"}) {
 		t.Fatalf("claim = %+v, %v", d, ok)
 	}
 	if _, ok := TakeClaim(home, "0123456789ab"); ok {
@@ -657,5 +657,147 @@ func TestAFailedClaimKeepsTheNoteOfTheClaimThatWorked(t *testing.T) {
 func TestClaimPairKeyRefusesABadID(t *testing.T) {
 	if _, err := ClaimPairKey(t.TempDir(), "/opt/mb/matchblox", "x/../../a", phoneKey, "iPhone"); err == nil {
 		t.Fatal("a bad id was accepted")
+	}
+}
+
+func claimThree(t *testing.T, home string) []Device {
+	t.Helper()
+	phoneKey3 := "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBGMt7fGXt2BCQ35mlNWthRvVka0x8TAjocrNXcf2JcvjHlmAI0vnJaVT793tsGTpVtb7V9XvMpzByQwfg6/H1Yo="
+	keys := []string{phoneKey, phoneKey2, phoneKey3}
+	ids := []string{"0123456789ab", "ba9876543210", "aaaaaaaaaaaa"}
+	var out []Device
+	for i, id := range ids {
+		if err := AddPairKey(home, "/opt/mb/matchblox", pairPub, id, time.Now().Add(time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+		d, err := ClaimPairKey(home, "/opt/mb/matchblox", id, keys[i], "iPad")
+		if err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, d)
+	}
+	return out
+}
+
+func TestClaimWritesTheDeviceID(t *testing.T) {
+	home := t.TempDir()
+	if err := AddPairKey(home, "/opt/mb/matchblox", pairPub, "0123456789ab", time.Now().Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	d, err := ClaimPairKey(home, "/opt/mb/matchblox", "0123456789ab", phoneKey, "iPhone")
+	if err != nil || d.ID != "0123456789ab" {
+		t.Fatalf("claim = %+v, %v", d, err)
+	}
+	if !strings.Contains(authKeys(home), `gate phone 0123456789ab"`) {
+		t.Fatalf("no id in the line:\n%s", authKeys(home))
+	}
+	got, err := Devices(home)
+	if err != nil || len(got) != 1 || got[0].ID != "0123456789ab" || got[0].Kind != "phone" {
+		t.Fatalf("devices = %+v, %v", got, err)
+	}
+}
+
+func TestClaimMakesNamesUnique(t *testing.T) {
+	home := t.TempDir()
+	var names []string
+	for _, d := range claimThree(t, home) {
+		names = append(names, d.Name)
+	}
+	if !slices.Equal(names, []string{"iPad", "iPad 2", "iPad 3"}) {
+		t.Fatalf("names = %v", names)
+	}
+	if d, ok := TakeClaim(home, "ba9876543210"); !ok || d.Name != "iPad 2" {
+		t.Fatalf("claim note = %+v, %v; want the final name", d, ok)
+	}
+	if _, err := RemoveDevice(home, "iPad 2"); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := Devices(home)
+	if len(got) != 2 || got[0].Name != "iPad" || got[1].Name != "iPad 3" {
+		t.Fatalf("devices = %+v", got)
+	}
+}
+
+func TestClaimKeepsALongNameWithinForty(t *testing.T) {
+	home := t.TempDir()
+	long := strings.Repeat("é", 40)
+	for i, id := range []string{"0123456789ab", "ba9876543210"} {
+		if err := AddPairKey(home, "/opt/mb/matchblox", pairPub, id, time.Now().Add(time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+		d, err := ClaimPairKey(home, "/opt/mb/matchblox", id, []string{phoneKey, phoneKey2}[i], long)
+		if err != nil || !ValidDeviceName(d.Name) {
+			t.Fatalf("claim %d = %+v, %v", i, d, err)
+		}
+		if i == 1 && d.Name != strings.Repeat("é", 38)+" 2" {
+			t.Fatalf("name = %q", d.Name)
+		}
+	}
+}
+
+func TestDevicesReadsEveryLineKind(t *testing.T) {
+	home := t.TempDir()
+	laptopKey := loadPairFixture(t).HostkeyPub
+	pre := `restrict,pty,command="'/opt/mb/matchblox' gate phone" ` + phoneKey + " " + phoneComment + "Old"
+	nw := `restrict,pty,command="'/opt/mb/matchblox' gate phone 0123456789ab" ` + phoneKey2 + " " + phoneComment + "New"
+	laptop := `restrict,pty,command="'/opt/mb/matchblox' gate" ` + laptopKey + " matchblox"
+	pair := `restrict,expiry-time="202610141200",command="'/opt/mb/matchblox' gate pair abcdef012345" ` + pairPub + " matchblox:pair"
+	writeFile(t, filepath.Join(home, ".ssh", "authorized_keys"), pre+"\n"+nw+"\n"+laptop+"\n"+pair+"\nssh-rsa AAAAother other@box\n")
+	got, err := Devices(home)
+	if err != nil || len(got) != 3 {
+		t.Fatalf("devices = %+v, %v", got, err)
+	}
+	if got[0].Kind != "phone" || got[0].Name != "Old" || got[0].ID != "" ||
+		got[1].Kind != "phone" || got[1].Name != "New" || got[1].ID != "0123456789ab" ||
+		got[2].Kind != "laptop" || got[2].ID != "" {
+		t.Fatalf("devices = %+v", got)
+	}
+}
+
+func TestSeenAndDeviceNotes(t *testing.T) {
+	home := t.TempDir()
+	id := "0123456789ab"
+	if seen, _ := PairSeen(home, id); seen {
+		t.Fatal("seen before it was marked")
+	}
+	if err := MarkPairSeen(home, id, "iPad"); err != nil {
+		t.Fatal(err)
+	}
+	if seen, name := PairSeen(home, id); !seen || name != "iPad" {
+		t.Fatalf("seen = %v, %q", seen, name)
+	}
+	if fi, err := os.Stat(filepath.Join(home, ".ssh", ".matchblox-pair-"+id+".seen")); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Fatalf("seen note: %v, %v", fi, err)
+	}
+	RemovePairSeen(home, id)
+	if seen, _ := PairSeen(home, id); seen {
+		t.Fatal("seen after remove")
+	}
+	if err := MarkPairSeen(home, id, ""); err != nil {
+		t.Fatal(err)
+	}
+	if seen, name := PairSeen(home, id); !seen || name != "" {
+		t.Fatalf("seen = %v, %q", seen, name)
+	}
+
+	at := time.Date(2026, 10, 21, 9, 30, 0, 0, time.UTC)
+	if _, _, ok := DeviceIn(home, id); ok {
+		t.Fatal("in before it was marked")
+	}
+	if err := MarkDeviceIn(home, id, "/dev/ttys004", at); err != nil {
+		t.Fatal(err)
+	}
+	if err := MarkDeviceIn(home, "ba9876543210", "/dev/ttys009", at); err != nil {
+		t.Fatal(err)
+	}
+	gotAt, tty, ok := DeviceIn(home, id)
+	if !ok || !gotAt.Equal(at) || tty != "/dev/ttys004" {
+		t.Fatalf("in = %v, %q, %v", gotAt, tty, ok)
+	}
+	if m := DeviceTTYs(home); len(m) != 2 || m["/dev/ttys004"] != id || m["/dev/ttys009"] != "ba9876543210" {
+		t.Fatalf("ttys = %v", m)
+	}
+	if fi, err := os.Stat(filepath.Join(home, ".ssh", ".matchblox-device-"+id)); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Fatalf("device note: %v, %v", fi, err)
 	}
 }

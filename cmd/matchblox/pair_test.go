@@ -153,6 +153,39 @@ func TestPairIDIsTwelveLowercaseHex(t *testing.T) {
 	}
 }
 
+func TestConsolePairWritesAndRemovesTheKey(t *testing.T) {
+	f := loadPairFixture(t)
+	home := t.TempDir()
+	hostKey := filepath.Join(t.TempDir(), "host.pub")
+	if err := os.WriteFile(hostKey, []byte(f.HostKeyPub+" root@ws-1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := consolePair(home, testExe, hostKey, func() string { return "ws-1.tail1234.ts.net" })
+	id, link, err := h.Offer(time.Now().Add(time.Minute))
+	if err != nil || !strings.HasPrefix(link, "matchblox://pair?p=") {
+		t.Fatalf("offer: %q %v", link, err)
+	}
+	if err := setup.MarkPairSeen(home, id, "iPad"); err != nil {
+		t.Fatal(err)
+	}
+	if seen, name := h.Seen(id); !seen || name != "iPad" {
+		t.Fatalf("seen = %v %q", seen, name)
+	}
+	if removed, err := h.Remove(id); !removed || err != nil {
+		t.Fatalf("remove = %v %v", removed, err)
+	}
+	if present, _ := h.Present(id); present {
+		t.Fatal("the key line stayed")
+	}
+	if seen, _ := h.Seen(id); seen {
+		t.Fatal("the seen note stayed")
+	}
+	_, _, err = consolePair(home, "", hostKey, func() string { return "ws-1" }).Offer(time.Now().Add(time.Minute))
+	if err == nil || err.Error() != "cannot find this matchblox on the PATH" {
+		t.Fatalf("no binary: %v", err)
+	}
+}
+
 func TestPairCmdStopsOnCtrlC(t *testing.T) {
 	f := loadPairFixture(t)
 	home := t.TempDir()
@@ -368,5 +401,46 @@ func TestPairMainWithoutALineAddsNothing(t *testing.T) {
 	}
 	if devs, _ := setup.Devices(home); len(devs) != 0 {
 		t.Fatalf("Devices = %+v", devs)
+	}
+}
+
+func TestPairMainMarksSeenBeforeItReads(t *testing.T) {
+	old := pairReadTimeout
+	pairReadTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { pairReadTimeout = old })
+	home, id := homeWithPairKey(t)
+	r, w := io.Pipe() // open, and silent
+	t.Cleanup(func() { _ = w.Close() })
+	done := make(chan error, 1)
+	go func() { done <- pairMain(home, testExe, r, io.Discard, id) }()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if seen, _ := setup.PairSeen(home, id); seen {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if seen, name := setup.PairSeen(home, id); !seen || name != "" {
+		t.Fatalf("PairSeen = %v, %q; want true and no name", seen, name)
+	}
+	<-done
+}
+
+func TestPairMainNamesTheSeenNote(t *testing.T) {
+	f := loadPairFixture(t)
+	useHostLabel(t, "ws-1")
+	home, id := homeWithPairKey(t)
+	if err := pairMain(home, testExe, strings.NewReader(f.RequestLine), io.Discard, id); err != nil {
+		t.Fatal(err)
+	}
+	if seen, name := setup.PairSeen(home, id); !seen || name != "Jordan’s iPhone" {
+		t.Fatalf("PairSeen = %v, %q", seen, name)
+	}
+}
+
+func TestConsolePairOfferErrorSaysPressEnter(t *testing.T) {
+	_, _, err := consolePair(t.TempDir(), testExe, filepath.Join(t.TempDir(), "none.pub"), func() string { return "ws-1" }).Offer(time.Now().Add(time.Minute))
+	if err == nil || !strings.HasSuffix(err.Error(), "sudo ssh-keygen -A, then press Enter") {
+		t.Fatalf("err = %v", err)
 	}
 }

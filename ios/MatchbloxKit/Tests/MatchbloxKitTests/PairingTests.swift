@@ -85,8 +85,20 @@ final class PairingTests: XCTestCase {
     func testHostKeyChangedWhilePairingNamesTheAddress() {
         XCTAssertEqual(
             Pairing.message(for: .hostKeyChanged, host: "ws-1", address: "192.168.1.20"),
-            "192.168.1.20 is not ws-1. Check the address, then tap Pair."
+            "192.168.1.20 is not ws-1. Check the address, then tap Try again."
         )
+    }
+
+    /// The app has no form: a refusal asks for a new scan, never for a Pair button or a name.
+    func testRefusalsAskForANewScan() {
+        let cases: [(PairRefusal, String)] = [
+            (.badName, "ws-1 refused the name of this device. Scan the code again."),
+            (.writeFailed, "ws-1 could not save the key of this device. Check that ~/.ssh on ws-1 is writable, then scan the code again."),
+            (.tooSlow, "ws-1 did not get the key of this device in time. Scan the code again."),
+        ]
+        for (refusal, text) in cases {
+            XCTAssertEqual(Pairing.message(for: refusal, host: "ws-1"), text)
+        }
     }
 
     func testNoReplyCoversTheNetwork() {
@@ -147,5 +159,15 @@ final class PairingTests: XCTestCase {
             output.finish()
         }
         return stream
+    }
+
+    func testFirstLinkInText() {
+        let a = "matchblox://pair?p=AAAA"
+        let b = "matchblox://pair?p=BBBB"
+        XCTAssertEqual(Pairing.firstLink(in: "Open \(a) on the phone"), URL(string: a))
+        XCTAssertEqual(Pairing.firstLink(in: "Scan this: \(a)."), URL(string: a))
+        XCTAssertEqual(Pairing.firstLink(in: "\(a)\n"), URL(string: a))
+        XCTAssertNil(Pairing.firstLink(in: "no link here, https://example.com/?p=1"))
+        XCTAssertEqual(Pairing.firstLink(in: "\(a) and \(b)"), URL(string: a))
     }
 }

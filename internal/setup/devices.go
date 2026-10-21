@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -19,7 +20,9 @@ import (
 )
 
 // Device is a key that the gate lets in: a phone, or a laptop console.
-type Device struct{ Kind, Name, Fingerprint string }
+// ID is the id of the pairing that added a phone; it is "" for a laptop and
+// for a phone line from before ids.
+type Device struct{ Kind, Name, Fingerprint, ID string }
 
 // ValidDeviceName is a name the line comment can hold and a person can read.
 func ValidDeviceName(s string) bool {
@@ -48,7 +51,7 @@ func AuthorizeDevice(home, exe, pubKey, name string) (backup string, err error) 
 	if err := checkDevice(exe, pubKey, name); err != nil {
 		return "", err
 	}
-	return rewriteKeys(home, true, func(old []byte) ([]byte, error) { return withPhone(old, exe, pubKey, name) }, nil)
+	return rewriteKeys(home, true, func(old []byte) ([]byte, error) { return withPhone(old, exe, pubKey, name, "") }, nil)
 }
 
 func checkDevice(exe, pubKey, name string) error {
@@ -64,8 +67,12 @@ func checkDevice(exe, pubKey, name string) error {
 // withPhone puts the gate line of a phone in old. A phone line of the same key
 // is replaced; any other line of that key is the person's own login and
 // stays, so the phone is refused. A holder of a live code can learn from the
-// refusal that a key opens this host; the code stays theirs anyway.
-func withPhone(old []byte, exe, pubKey, name string) ([]byte, error) {
+// refusal that a key opens this host; the code stays theirs anyway. A phone
+// with an id gets `gate phone <id>`; the gate keeps notes by that id.
+func withPhone(old []byte, exe, pubKey, name, id string) ([]byte, error) {
+	if id != "" && !ValidPairID(id) {
+		return nil, errors.New("the pairing id is 12 lowercase hex characters: " + id)
+	}
 	f := strings.Fields(pubKey)
 	for line := range strings.SplitSeq(string(old), "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "#") || !hasKey(line, f[1]) {
@@ -75,13 +82,19 @@ func withPhone(old []byte, exe, pubKey, name string) ([]byte, error) {
 			return nil, ErrKeyInUse
 		}
 	}
-	return withLine(old, f[1], `restrict,pty,command="'`+exe+`' gate phone" `+f[0]+" "+f[1]+" "+phoneComment+name), nil
+	gate := "gate phone"
+	if id != "" {
+		gate += " " + id
+	}
+	return withLine(old, f[1], `restrict,pty,command="'`+exe+`' `+gate+`" `+f[0]+" "+f[1]+" "+phoneComment+name), nil
 }
 
 // ClaimPairKey takes out the line of the one-time key id and adds the phone
 // in one write, so the code works once and a phone is never half added. Then,
 // under the same lock, it leaves a note for TakeClaim. A claim that fails
-// never touches the note of one that worked.
+// never touches the note of one that worked. A name that a phone has gets a
+// number (iPad 2, iPad 3); the Device and the note carry the name that was
+// written.
 func ClaimPairKey(home, exe, id, pubKey, name string) (Device, error) {
 	if !ValidPairID(id) {
 		return Device{}, errors.New("the pairing id is 12 lowercase hex characters: " + id)
@@ -93,7 +106,7 @@ func ClaimPairKey(home, exe, id, pubKey, name string) (Device, error) {
 	if err != nil {
 		return Device{}, err
 	}
-	d := Device{"phone", name, fp}
+	d := Device{Kind: "phone", Name: name, Fingerprint: fp, ID: id}
 	_, err = rewriteKeys(home, true, func(old []byte) ([]byte, error) {
 		kept, n, err := withoutPairLine(old, id)
 		if err != nil {
@@ -102,7 +115,8 @@ func ClaimPairKey(home, exe, id, pubKey, name string) (Device, error) {
 		if n == 0 {
 			return nil, ErrCodeUsed
 		}
-		return withPhone(kept, exe, pubKey, name)
+		d.Name = uniquePhoneName(kept, name, strings.Fields(pubKey)[1])
+		return withPhone(kept, exe, pubKey, d.Name, id)
 	}, func() {
 		// matchblox pair waits for the lock, so it reads the note once the line is gone.
 		b, _ := json.Marshal(d)
@@ -112,6 +126,31 @@ func ClaimPairKey(home, exe, id, pubKey, name string) (Device, error) {
 		return Device{}, err
 	}
 	return d, nil
+}
+
+// uniquePhoneName is name, or name 2, name 3 and so on, whichever no phone in
+// keys has. The line of the same key does not count: it is replaced. The base
+// is cut so that the result is still a valid name.
+func uniquePhoneName(keys []byte, name, blob string) string {
+	taken := map[string]bool{}
+	for line := range strings.SplitSeq(string(keys), "\n") {
+		if d, ok := parseDevice(line); ok && d.Kind == "phone" && !hasKey(line, blob) {
+			taken[d.Name] = true
+		}
+	}
+	if !taken[name] {
+		return name
+	}
+	for n := 2; ; n++ {
+		suffix := " " + strconv.Itoa(n)
+		base := []rune(name)
+		if keep := 40 - len(suffix); len(base) > keep {
+			base = base[:keep]
+		}
+		if c := strings.TrimRight(string(base), " ") + suffix; !taken[c] {
+			return c
+		}
+	}
 }
 
 func claimNote(home, id string) string { return filepath.Join(home, ".ssh", ".matchblox-pair-"+id) }
@@ -149,7 +188,7 @@ func Fingerprint(authorizedKey string) (string, error) {
 	return "SHA256:" + base64.RawStdEncoding.EncodeToString(sum[:]), nil
 }
 
-var gateLine = regexp.MustCompile(`^[a-z,-]*command="'[^"]*' gate(?: phone)?" (\S+ \S+)(?: (.*))?$`)
+var gateLine = regexp.MustCompile(`^[a-z,-]*command="'[^"]*' gate(?: phone(?: ([0-9a-f]{12}))?)?" (\S+ \S+)(?: (.*))?$`)
 
 const phoneComment = "matchblox:phone:"
 
@@ -158,14 +197,14 @@ func parseDevice(line string) (Device, bool) {
 	if m == nil {
 		return Device{}, false
 	}
-	fp, err := Fingerprint(m[1])
+	fp, err := Fingerprint(m[2])
 	if err != nil {
 		return Device{}, false
 	}
-	if name, ok := strings.CutPrefix(m[2], phoneComment); ok {
-		return Device{"phone", name, fp}, true
+	if name, ok := strings.CutPrefix(m[3], phoneComment); ok {
+		return Device{Kind: "phone", Name: name, Fingerprint: fp, ID: m[1]}, true
 	}
-	return Device{"laptop", m[2], fp}, true
+	return Device{Kind: "laptop", Name: m[3], Fingerprint: fp}, true
 }
 
 // Devices are the keys that the gate lets in, in the order of the file.
@@ -185,17 +224,18 @@ func Devices(home string) ([]Device, error) {
 
 // RemoveDevice takes out the line of one phone or laptop, by its name (a
 // laptop's name is its key comment) or, when names repeat, by its
-// fingerprint.
+// fingerprint. A device with an id also loses its note of MarkDeviceIn.
 func RemoveDevice(home, name string) (backup string, err error) {
 	if name == "" {
 		return "", errors.New("give a name or a fingerprint from matchblox devices")
 	}
+	var gone string
 	return rewriteKeys(home, true, func(old []byte) ([]byte, error) {
 		lines := strings.Split(string(old), "\n")
 		hit, n := -1, 0
 		for i, line := range lines {
 			if d, ok := parseDevice(line); ok && (d.Fingerprint == name || d.Name == name) {
-				hit = i
+				hit, gone = i, d.ID
 				n++
 			}
 		}
@@ -206,7 +246,11 @@ func RemoveDevice(home, name string) (backup string, err error) {
 			return nil, fmt.Errorf("%d devices named %s; give the fingerprint", n, name)
 		}
 		return []byte(strings.Join(append(lines[:hit:hit], lines[hit+1:]...), "\n")), nil
-	}, nil)
+	}, func() {
+		if gone != "" {
+			_ = os.Remove(deviceNote(home, gone))
+		}
+	})
 }
 
 func authorizedKeys(home string) string { return filepath.Join(home, ".ssh", "authorized_keys") }
@@ -303,4 +347,117 @@ func RemovePairKey(home, id string) (removed bool, err error) {
 		return kept, err
 	}, nil)
 	return removed, err
+}
+
+// The notes below are written by the gate and read by the console, two
+// processes: a note is written whole to a temporary file and then renamed.
+func writeNote(path string, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(filepath.Dir(path), ".matchblox-note-")
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(b)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Chmod(f.Name(), 0o600)
+	}
+	if err == nil {
+		err = os.Rename(f.Name(), path)
+	}
+	if err != nil {
+		_ = os.Remove(f.Name())
+	}
+	return err
+}
+
+func readNote(path string, v any) bool {
+	b, err := os.ReadFile(path)
+	return err == nil && json.Unmarshal(b, v) == nil
+}
+
+func seenNote(home, id string) string { return claimNote(home, id) + ".seen" }
+
+func deviceNote(home, id string) string {
+	return filepath.Join(home, ".ssh", ".matchblox-device-"+id)
+}
+
+// MarkPairSeen notes that a phone opened the page of the one-time key id. The
+// name is the one that the phone gave, or "" if it gave none yet.
+func MarkPairSeen(home, id, name string) error {
+	if !ValidPairID(id) {
+		return errors.New("the pairing id is 12 lowercase hex characters: " + id)
+	}
+	if err := os.MkdirAll(filepath.Join(home, ".ssh"), 0o700); err != nil {
+		return err
+	}
+	return writeNote(seenNote(home, id), struct {
+		At   time.Time `json:"at"`
+		Name string    `json:"name"`
+	}{time.Now(), name})
+}
+
+// PairSeen is whether a phone opened the page of the one-time key id, and the
+// name it gave.
+func PairSeen(home, id string) (seen bool, name string) {
+	var n struct {
+		Name string `json:"name"`
+	}
+	if !ValidPairID(id) || !readNote(seenNote(home, id), &n) {
+		return false, ""
+	}
+	return true, n.Name
+}
+
+// RemovePairSeen takes away the note of MarkPairSeen.
+func RemovePairSeen(home, id string) {
+	if ValidPairID(id) {
+		_ = os.Remove(seenNote(home, id))
+	}
+}
+
+type deviceIn struct {
+	At  time.Time `json:"at"`
+	TTY string    `json:"tty"`
+}
+
+// MarkDeviceIn notes that the device id is in, on the terminal tty.
+func MarkDeviceIn(home, id, tty string, at time.Time) error {
+	if !ValidPairID(id) {
+		return errors.New("the device id is 12 lowercase hex characters: " + id)
+	}
+	if err := os.MkdirAll(filepath.Join(home, ".ssh"), 0o700); err != nil {
+		return err
+	}
+	return writeNote(deviceNote(home, id), deviceIn{at, tty})
+}
+
+// DeviceIn is when and where the device id came in; ok is false if no note
+// is there.
+func DeviceIn(home, id string) (at time.Time, tty string, ok bool) {
+	var n deviceIn
+	if !ValidPairID(id) || !readNote(deviceNote(home, id), &n) {
+		return time.Time{}, "", false
+	}
+	return n.At, n.TTY, true
+}
+
+// DeviceTTYs maps each terminal to the id of the device that is in on it. A
+// terminal that two notes name goes to the note with the later time.
+func DeviceTTYs(home string) map[string]string {
+	out := map[string]string{}
+	when := map[string]time.Time{}
+	files, _ := filepath.Glob(deviceNote(home, "*"))
+	for _, f := range files {
+		id := strings.TrimPrefix(filepath.Base(f), ".matchblox-device-")
+		if at, tty, ok := DeviceIn(home, id); ok && tty != "" && (out[tty] == "" || at.After(when[tty])) {
+			out[tty], when[tty] = id, at
+		}
+	}
+	return out
 }

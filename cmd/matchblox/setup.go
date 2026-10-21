@@ -117,6 +117,10 @@ func setupDoors(e setup.Env, in io.Reader, out io.Writer, run func(argv []string
 			say("  %s\n", d.Problem)
 			continue
 		}
+		if d.ID == doors.Pair {
+			say("  press Enter on it in the console, or run matchblox pair\n")
+			continue
+		}
 		if d.ID == doors.Night {
 			say("  press n in the console to start one\n")
 			continue

@@ -21,10 +21,15 @@ struct MatchbloxApp: App {
                         onCancel: store.all().isEmpty ? nil : { go(Opening.first(hosts: store.all())) }
                     )
                 case .pair(let draft):
-                    PairView(
+                    PairingView(
                         draft: draft,
                         store: store,
-                        onPaired: { go(.console($0)) },
+                        onPaired: { host in
+                            // The console slides in from the drawer side.
+                            withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .easeOut(duration: 0.3)) {
+                                go(.console(host))
+                            }
+                        },
                         onScanAgain: { go(.scan) }
                     )
                     .id(draft.payload.key)
@@ -35,6 +40,8 @@ struct MatchbloxApp: App {
                         onHosts: store.all().count > 1 ? { go(.hosts) } : nil,
                         onScanAgain: { go(.scan) }
                     )
+                    .transition(.move(edge: .trailing))
+                    .zIndex(1)
                 case .hosts:
                     HostsView(
                         store: store,

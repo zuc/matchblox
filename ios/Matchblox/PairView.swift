@@ -2,116 +2,178 @@ import MatchbloxKit
 import NIOSSH
 import SwiftUI
 
-struct PairView: View {
+/// The box takes the link and pairs, with no form: the scan is the consent (design/0009 §6.2, §6.5).
+struct PairingView: View {
     @State var draft: PairDraft
     let store: HostStore
     let onPaired: (Host) -> Void
     let onScanAgain: () -> Void
 
     private enum Phase: Equatable {
-        case ready
         case pairing
-        case failed(String)
+        case paired(Date)
+        /// `retry` is true when another address can help.
+        case failed(String, retry: Bool)
     }
 
-    @State private var phase = Phase.ready
-    @State private var flow: Task<Void, Never>?
+    /// The burning match stays this long before the console comes: one flame, in seconds.
+    private static let hold = 0.24
+    private static let actions = "actions"
+
+    @State private var phase = Phase.pairing
+    @State private var attempt = 0
     @State private var pulse = false
+    /// The full screen. The box takes its place from it, so the keyboard does not move the box.
+    @State private var screen = CGSize.zero
+    @FocusState private var editing: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var pairing: Bool { phase == .pairing }
-    private var canPair: Bool {
-        !pairing && !draft.address.trimmingCharacters(in: .whitespaces).isEmpty
+    private var pose: BoxPose {
+        switch phase {
+        case .pairing: .shut
+        case .paired(let start): .open(start)
+        case .failed: .failed
+        }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Pair with \(draft.payload.name)")
-                    .font(.title3)
-                Text("as \(draft.payload.user)")
-                    .foregroundStyle(Theme.muted)
+        let box = PairStage.boxFrame(in: screen)
+        ZStack {
+            MatchBox(pose: pose, label: AnyView(label))
+                .frame(width: box.width, height: box.height)
+                .position(x: box.midX, y: box.midY)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onGeometryChange(for: CGSize.self, of: \.size) { screen = $0 }
+                .ignoresSafeArea()
+            if case .failed(let message, let retry) = phase {
+                failure(message, retry: retry, under: box)
             }
-            field("Address", text: $draft.address, hint: "Change it if the iPhone can't reach this name.")
-                .keyboardType(.URL)
-            field("iPhone name", text: $draft.phoneName, hint: "\(draft.payload.name) shows this name.")
-            if case .failed(let message) = phase {
-                Text(message)
-                    .foregroundStyle(Theme.neg)
-            }
-            HStack(spacing: 24) {
-                Button(action: startPairing) {
-                    Text(pairing ? "Pairing…" : "Pair")
-                        .opacity(pairing && pulse ? 0.4 : 1)
-                }
-                .buttonStyle(.borderedProminent)
-                .foregroundStyle(Theme.bg)
-                .disabled(!canPair)
-                Button("Scan again", action: onScanAgain)
-                    .foregroundStyle(Theme.muted)
-                    .disabled(pairing)
-            }
-            Spacer()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(24)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
-        .onDisappear {
-            flow?.cancel()
-            flow = nil
-        }
-        .onChange(of: pairing) { _, now in
-            guard now, !reduceMotion else {
+        .task(id: attempt) { await pair() }
+        .onChange(of: phase == .pairing, initial: true) { _, pairing in
+            guard pairing, !reduceMotion else {
                 pulse = false
                 return
             }
+            pulse = false
             withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
                 pulse = true
             }
         }
     }
 
-    private func field(_ label: String, text: Binding<String>, hint: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label)
-                .font(.footnote)
-                .foregroundStyle(Theme.faint)
-            TextField(label, text: text)
-                .disabled(pairing)
-                .padding(.vertical, 8)
-                .overlay(alignment: .bottom) {
-                    Rectangle().fill(Theme.hair).frame(height: 1)
-                }
-            Text(hint)
-                .font(.footnote)
-                .foregroundStyle(Theme.faint)
+    /// The host's name on the label. It pulses while the app connects: a value that is not known yet.
+    private var label: some View {
+        ZStack {
+            Theme.fg
+            Text(draft.payload.name)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.4)
+                .padding(6)
+                .foregroundStyle(phase == .pairing || isPaired ? Theme.bg : Theme.faint)
+                .opacity(phase == .pairing && pulse ? 0.4 : 1)
         }
     }
 
-    private func startPairing() {
-        guard flow == nil, canPair else { return }
-        phase = .pairing
-        flow = Task { await pair() }
+    private var isPaired: Bool {
+        if case .paired = phase { return true }
+        return false
     }
 
-    /// A new code or a new screen cancels the flow, so an old pairing never opens a console.
+    /// The failure starts under the box, as wide as the box. It scrolls, so the keyboard never hides the field or Try again.
+    private func failure(_ message: String, retry: Bool, under box: CGRect) -> some View {
+        GeometryReader { view in
+            let top = view.frame(in: .global).minY
+            ScrollViewReader { scroll in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(message)
+                            .foregroundStyle(Theme.neg)
+                        if retry {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Address")
+                                    .font(.footnote)
+                                    .foregroundStyle(Theme.faint)
+                                TextField("Address", text: $draft.address)
+                                    .keyboardType(.URL)
+                                    .focused($editing)
+                                    .padding(.vertical, 8)
+                                    .overlay(alignment: .bottom) {
+                                        Rectangle().fill(Theme.hair).frame(height: 1)
+                                    }
+                            }
+                        }
+                        HStack(spacing: 24) {
+                            if retry {
+                                Button("Try again") {
+                                    editing = false
+                                    attempt += 1
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .foregroundStyle(Theme.bg)
+                                .disabled(draft.address.trimmingCharacters(in: .whitespaces).isEmpty)
+                            }
+                            Button("Scan again", action: onScanAgain)
+                                .foregroundStyle(Theme.muted)
+                        }
+                        .id(Self.actions)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 12)
+                    // The block can scroll over the box. It stays legible there.
+                    .background(Theme.bg)
+                    .frame(width: box.width)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, max(box.maxY + 12 - top, 0))
+                }
+                .scrollDismissesKeyboard(.interactively)
+                // The keyboard makes the view shorter. Try again then scrolls up above it.
+                .onChange(of: view.size.height) {
+                    guard editing else { return }
+                    withAnimation { scroll.scrollTo(Self.actions, anchor: .bottom) }
+                }
+            }
+        }
+    }
+
+    /// A new code or a new screen cancels the task, so an old pairing never opens a console.
     private func pair() async {
+        Haptics.prepare()
+        phase = .pairing
         let outcome = await PairFlow.run(draft, store: store)
         guard !Task.isCancelled else { return }
-        flow = nil
+        // The flow can take many seconds, and the generators go idle in that time.
+        Haptics.prepare()
         switch outcome {
         case .paired(let host):
+            let clock = ContinuousClock()
+            let start = clock.now
+            phase = .paired(Date())
+            do {
+                try await clock.sleep(until: start + .seconds(MatchBox.strikeAt))
+                Haptics.strike()
+                try await clock.sleep(until: start + .seconds(MatchBox.stoodAt))
+                Haptics.stood()
+                try await clock.sleep(until: start + .seconds(MatchBox.stoodAt + Self.hold))
+            } catch {
+                return
+            }
             onPaired(host)
-        case .failed(let message):
-            phase = .failed(message)
+        case .failed(let message, let retry):
+            phase = .failed(message, retry: retry)
+            Haptics.failed()
         }
     }
 }
 
 enum PairOutcome: Sendable {
     case paired(Host)
-    case failed(String)
+    /// `retry` is true when the host did not answer at the address, or another machine answered: another address can help.
+    case failed(String, retry: Bool = false)
 }
 
 enum PairFlow {
@@ -148,7 +210,10 @@ enum PairFlow {
         do {
             output = try await session.open(command: "matchblox gate pair", pty: nil)
         } catch {
-            return .failed(Pairing.message(for: error, host: label, address: address))
+            return .failed(
+                Pairing.message(for: error, host: label, address: address),
+                retry: error == .unreachable || error == .hostKeyChanged
+            )
         }
 
         let request = Pairing.requestLine(name: Pairing.cleanName(draft.phoneName), key: phoneKey)

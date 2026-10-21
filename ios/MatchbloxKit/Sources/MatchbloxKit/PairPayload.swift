@@ -18,17 +18,30 @@ public struct PairPayload: Codable, Equatable, Sendable {
     public init(url: URL) throws(PairError) {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               components.scheme?.lowercased() == "matchblox",
-              components.host == "pair"
+              components.host?.lowercased() == "pair"
         else { throw .notMatchblox }
 
         guard let encoded = components.queryItems?.first(where: { $0.name == "p" })?.value,
               !encoded.isEmpty,
-              let json = Self.decodeBase64URL(encoded),
-              let raw = try? JSONDecoder().decode(Raw.self, from: json)
+              let bytes = Self.decodeBase64URL(encoded),
+              let first = bytes.first
         else { throw .malformed }
 
+        let raw: Raw
+        switch first {
+        case UInt8(ascii: "{"):
+            guard let json = try? JSONDecoder().decode(Raw.self, from: bytes) else { throw .malformed }
+            guard json.v == 1 else { throw .version(json.v ?? 0) }
+            raw = json
+        case 2:
+            raw = try Self.rawV2(bytes)
+        case ..<0x20:
+            throw .version(Int(first))
+        default:
+            throw .malformed
+        }
+
         let version = raw.v ?? 0
-        guard version == 1 else { throw .version(version) }
 
         guard let host = raw.host, !host.isEmpty,
               let user = raw.user, !user.isEmpty,
@@ -60,6 +73,25 @@ public struct PairPayload: Codable, Equatable, Sendable {
         let name: String?
         let hostkey: String?
         let key: String?
+    }
+
+    private static let v2Head = 3 + 32 + 32
+
+    /// The v2 bytes: 2, port (2 bytes), sha256 of the host key, the seed, then host 0 user 0 name.
+    private static func rawV2(_ bytes: Data) throws(PairError) -> Raw {
+        let bytes = Array(bytes)
+        guard bytes.count >= v2Head else { throw .malformed }
+        let parts = bytes[v2Head...].split(separator: 0, omittingEmptySubsequences: false)
+        guard parts.count == 3,
+              let host = String(data: Data(parts[0]), encoding: .utf8),
+              let user = String(data: Data(parts[1]), encoding: .utf8),
+              let name = String(data: Data(parts[2]), encoding: .utf8)
+        else { throw .malformed }
+        let fingerprint = Data(bytes[3..<35]).base64EncodedString().replacingOccurrences(of: "=", with: "")
+        return Raw(
+            v: 2, host: host, port: Int(bytes[1]) << 8 | Int(bytes[2]), user: user, name: name,
+            hostkey: "SHA256:" + fingerprint, key: Data(bytes[35..<v2Head]).base64EncodedString()
+        )
     }
 
     private static func decodeBase64URL(_ text: String) -> Data? {

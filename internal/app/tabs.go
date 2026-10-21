@@ -90,21 +90,39 @@ var views = [...]tabView{
 	tabMachine: {
 		name: "machine",
 		keys: func(m Model) []hint {
+			if r, ok := m.selectedDevice(); ok {
+				if r.plus {
+					return []hint{{"⏎", "pair", "enter"}, {"f", "stoker", "f"}}
+				}
+				return []hint{{"x", "remove", "x"}, {"f", "stoker", "f"}}
+			}
 			if len(m.snap.Orphans) == 0 {
 				return []hint{{"p", "ships", "p"}, {"f", "stoker", "f"}}
 			}
 			return []hint{{"⏎", "jump", "enter"}, {"x", "kill", "x"}, {"f", "stoker", "f"}}
 		},
-		count: func(m Model) int { return len(m.snap.Orphans) },
-		index: Model.orphanIndex,
-		pick:  func(m *Model, i int) { m.orphanPID = m.snap.Orphans[i].PID },
+		count: Model.machineRows,
+		index: Model.machineIndex,
+		pick:  (*Model).machinePick,
 		primary: func(m Model) *action {
+			if r, ok := m.selectedDevice(); ok {
+				if r.plus {
+					return &action{label: "pair a device", say: "pair a device: show a one-time code", pair: true}
+				}
+				return nil
+			}
 			if o, ok := m.selectedOrphan(); ok && o.PaneAlive {
 				return m.jump(o.Pane)
 			}
 			return nil
 		},
 		secondary: func(m Model) *action {
+			if r, ok := m.selectedDevice(); ok {
+				if r.plus {
+					return nil
+				}
+				return m.removeDevice(r)
+			}
 			if o, ok := m.selectedOrphan(); ok {
 				return &action{label: "kill", steps: [][]string{o.Kill}, destructive: true,
 					rec: "orphan:" + strconv.Itoa(o.PID), which: "secondary"}

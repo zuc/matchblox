@@ -74,6 +74,14 @@ type Options struct {
 	StateDir string
 	// Exec gives this terminal to argv until it exits. Nil: tea.ExecProcess.
 	Exec func(argv []string, done func(error) tea.Msg) tea.Cmd
+	// Pair writes and reads the pair page's one-time key on this machine.
+	// Nil: this console cannot pair.
+	Pair *PairHost
+	// LastClient is the tty of the client that was active last in the home
+	// session. Nil: ask tmux. "" or an error: the builder's.
+	LastClient func() (tty string, err error)
+	// Clip copies text to the builder's clipboard. Nil: OSC 52 on stdout.
+	Clip func(text string)
 }
 
 type helloMsg proto.Hello
@@ -118,18 +126,20 @@ type action struct {
 	steps       [][]string
 	destructive bool
 	nav         bool
-	attach      bool     // the last step takes the terminal until it exits
-	rec         string   // the service's name for it
-	which       string   // primary | secondary
-	text        string   // what an answer types; a door's preview Sum
-	batch       []string // worktrees: one guarded act each
-	say         string   // what the confirm shows, when not the first step
-	term        bool     // the step takes this terminal (a door's command)
-	door        string   // the door it opens or closes
-	remote      bool     // steps[0] is the ssh argv that runs it on the host, checked
-	connect     bool     // it connects the host: install, update or authorize
-	pane        string   // a jump: the pane it goes to
-	again       string   // a kill of a session that works or waits: what the second y's confirm says
+	attach      bool                        // the last step takes the terminal until it exits
+	rec         string                      // the service's name for it
+	which       string                      // primary | secondary
+	text        string                      // what an answer types; a door's preview Sum
+	batch       []string                    // worktrees: one guarded act each
+	say         string                      // what the confirm shows, when not the first step
+	term        bool                        // the step takes this terminal (a door's command)
+	pair        bool                        // the pair door: it opens the pair page, never a pending step
+	door        string                      // the door it opens or closes
+	remote      bool                        // steps[0] is the ssh argv that runs it on the host, checked
+	connect     bool                        // it connects the host: install, update or authorize
+	pane        string                      // a jump: the pane it goes to
+	local       func(Model) (Model, string) // it runs in this console; its string is the flash
+	again       string                      // a kill of a session that works or waits: what the second y's confirm says
 }
 
 // recRun is an act on a recommendation: the row shows its outcome.
@@ -278,10 +288,16 @@ type Model struct {
 	stokerSel    int
 	stokerShown  string
 	ackSent      time.Time
-	sheet        *sheet // the launch sheet, while it is open
-	stokerServer string // the tmux server (-L) the stoker agent runs on; "" none
-	toast        string // what an action did, on the header's right
-	toasts       int    // counts the toasts: a later one outlives the timer of an earlier one
+	sheet        *sheet       // the launch sheet, while it is open
+	stokerServer string       // the tmux server (-L) the stoker agent runs on; "" none
+	toast        string       // what an action did, on the header's right
+	toasts       int          // counts the toasts: a later one outlives the timer of an earlier one
+	devices      []PairDevice // the keys that open this host, read when the Machine tab opens
+	devErr       error        // why the keys could not be read
+	devPick      string       // the selected device row: its fingerprint, or devPlus
+	pair         *pairPage    // the pair page, while it shows
+	pairPolling  bool         // a poll of the pair page is on its way
+	pairOffers   *pairWaits   // the offers of a key that still run: the end of the program waits for them
 }
 
 func New(opt Options) Model {
@@ -421,7 +437,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.stokerClaims() {
 			m.dockSwitched = false
 		}
-		m.doors = openDoors(st.Doors)
+		m.doors = m.shownDoors(st.Doors)
 		m.noteChanges(st.Sessions)
 		m.snap, m.git, m.recs, m.have, m.answered = st.Snapshot, st.Git, st.Recommendations, true, true
 		m.shipReport = st.Ships
@@ -453,6 +469,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(m.recv(), m.animate(), news, order)
 	case doorRanMsg:
 		return m.doorRan(msg)
+	case pairOfferMsg:
+		return m.offered(msg)
+	case pairPollMsg:
+		return m.pairPolled()
+	case pairFrameMsg:
+		if m.pairMoving() {
+			return m, pairFrame()
+		}
 	case animMsg:
 		m.animating = false
 		return m, m.animate()
@@ -602,12 +626,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var touch tea.Cmd
 		// f and n are stoker acts themselves: a touch sent with them would
 		// race them on the service.
-		if k := msg.String(); m.peek != nil || m.sheet != nil || m.form != nil || m.searching || k != "f" && k != "n" {
+		if k := msg.String(); m.pair != nil || m.peek != nil || m.sheet != nil || m.form != nil || m.searching || k != "f" && k != "n" {
 			m, touch = m.touchRest()
 		}
 		var next tea.Model
 		var cmd tea.Cmd
 		switch {
+		case m.pair.owns():
+			next, cmd = m.pairKey(msg.String())
+		case m.pairStripEsc(msg.String()):
+			next, cmd = m.closePairPage(""), nil
 		case m.sheet != nil:
 			next, cmd = m.sheetKey(msg)
 		case m.form != nil:
@@ -703,8 +731,7 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 	case "c":
 		return m.openStoker(), nil
 	case "q", "ctrl+c":
-		m.quitting = true
-		return m, tea.Quit
+		return m.quit()
 	case "tab":
 		m.setTab((m.tab + 1) % len(tabNames))
 	case "shift+tab":
@@ -740,7 +767,8 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 				m.flash = s.Name + " is outside tmux: nothing to park"
 				break
 			}
-			return m, m.send(proto.Act{RecID: "park:" + s.Pane})
+			cmd := m.send(proto.Act{RecID: "park:" + s.Pane})
+			return m.pairActed(action{rec: "park:" + s.Pane}), cmd
 		}
 	case "space", " ":
 		if m.tab == tabGit {
@@ -772,6 +800,9 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 			}
 			m.showCommand()
 			return m, nil
+		}
+		if a := m.primary(); a != nil && a.pair {
+			return m.openPairDoor()
 		}
 		m.pending, m.previewTop = m.primary(), 0
 	case "x":
@@ -828,6 +859,11 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 // confirm runs an action the person consented to: a Nav step here, any
 // other on the service.
 func (m Model) confirm(a action) (tea.Model, tea.Cmd) {
+	if a.local != nil {
+		next, msg := a.local(m)
+		next.flash = msg
+		return next, nil
+	}
 	if a.remote {
 		return m.onHost(a)
 	}
@@ -860,7 +896,7 @@ func (m Model) confirm(a action) (tea.Model, tea.Cmd) {
 	m.flash = "sent: " + a.String()
 	cmd := m.send(proto.Act{RecID: a.rec, Which: a.which, Confirm: confirm, Text: a.text})
 	m.startRec(a, "a"+strconv.Itoa(m.acts))
-	return m, cmd
+	return m.pairActed(a), cmd
 }
 
 func runNav(a action, run func([]string) error) ranMsg {

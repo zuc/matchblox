@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/blox-eng/matchblox/internal/remote"
 	"github.com/blox-eng/matchblox/internal/setup"
@@ -11,17 +12,20 @@ import (
 
 // gateMain is the forced command of the matchblox key on a host
 // (design/0005-remote-mode.md §3.3). A laptop key (`gate`) starts the service
-// stream; a phone key (`gate phone`) also starts the console. Anything else
-// exits 126.
+// stream; a phone key (`gate phone` or `gate phone <id>`) also starts the
+// console. A phone key with an id leaves a note that the device is in, which
+// the console reads. Anything else exits 126.
 func gateMain(args []string) error {
 	if len(args) == 2 && args[0] == "pair" {
 		return gatePair(args[1])
 	}
-	mode := ""
+	mode, id := "", ""
 	switch {
 	case len(args) == 0:
 	case len(args) == 1 && args[0] == phoneMode:
 		mode = phoneMode
+	case len(args) == 2 && args[0] == phoneMode && setup.ValidPairID(args[1]):
+		mode, id = phoneMode, args[1]
 	default:
 		fmt.Fprintln(os.Stderr, "matchblox gate: refused: this key line has an unknown gate mode; run matchblox connect or matchblox pair again")
 		os.Exit(126)
@@ -32,6 +36,12 @@ func gateMain(args []string) error {
 		fmt.Fprintf(os.Stderr, "matchblox gate: refused %q: %v\n", orig, err)
 		os.Exit(126)
 	}
+	if id != "" && orig == remote.ConsoleCommand {
+		// Only the console marks the device in; a note that fails never blocks it.
+		if home, err := os.UserHomeDir(); err == nil {
+			_ = setup.MarkDeviceIn(home, id, os.Getenv("SSH_TTY"), time.Now())
+		}
+	}
 	// ssh's own PATH (a non-login shell, or sshd's default on macOS) may
 	// not have tmux: the service it starts lists the panes with it.
 	_ = os.Setenv("PATH", os.ExpandEnv(remote.HostPath)+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -39,8 +49,13 @@ func gateMain(args []string) error {
 	// The console re-runs itself in the home session with these arguments:
 	// without "gate" it is the builder's own `matchblox`.
 	os.Args = os.Args[:1]
-	return run(argv)
+	return gateRun(argv)
 }
+
+// gateRun runs the console or the service; tests replace it.
+var gateRun func([]string) error
+
+func init() { gateRun = run }
 
 const phoneMode = "phone"
 

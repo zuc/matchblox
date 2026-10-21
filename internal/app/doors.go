@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -23,6 +24,28 @@ func openDoors(ds []doors.Door) []doors.Door {
 	return out
 }
 
+// shownDoors are the open doors this console can use. The pair door needs
+// the host's own console: a remote console has no PairHost.
+func (m Model) shownDoors(ds []doors.Door) []doors.Door {
+	out := openDoors(ds)
+	if m.opt.Host != "" || m.opt.Pair == nil {
+		out = slices.DeleteFunc(out, func(d doors.Door) bool { return d.ID == doors.Pair })
+	}
+	return out
+}
+
+// openPairDoor is Enter or a tap on the pair door: the page owns the
+// screen and its keys, so nothing else stays open under it.
+func (m Model) openPairDoor() (Model, tea.Cmd) {
+	if m.fromDevice() {
+		m.flash = pairFromDeviceLine
+		return m, nil
+	}
+	m.pending, m.peek, m.sheet, m.form, m.held, m.searching = nil, nil, nil, nil, nil, false
+	m.armed = ""
+	return m.openPairPage()
+}
+
 // doorAction is what Enter does on a door: write its file, or run its
 // command in this terminal. Both wait for a typed y.
 func (m Model) doorAction(d doors.Door) *action {
@@ -31,6 +54,9 @@ func (m Model) doorAction(d doors.Door) *action {
 	}
 	if d.ID == doors.Night {
 		return nightDoorAction(d)
+	}
+	if d.ID == doors.Pair {
+		return &action{label: d.Title, say: d.Title + ": show a one-time code", door: d.ID, pair: true}
 	}
 	if d.RunsTerm() {
 		argv, where := d.Term, "in this terminal"

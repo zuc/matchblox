@@ -96,8 +96,7 @@ func (m Model) sheetKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.sheet = &s
 	switch key {
 	case "ctrl+c":
-		m.quitting = true
-		return m, tea.Quit
+		return m.quit()
 	case "enter":
 		return m.sheetEnter()
 	}

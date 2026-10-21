@@ -420,6 +420,8 @@ func spoolPath() string { return filepath.Join(filepath.Dir(state.Path()), "spoo
 func console(path string, cfg config.Config, root string, noMotion bool, host string) error {
 	base := app.Options{Binary: version, CompactAt: cfg.Sessions.CompactAt, CompactTokens: cfg.Sessions.CompactTokens, NoMotion: noMotion,
 		OutsideTmux: os.Getenv("TMUX") == "", Self: invokedPath(os.Args[0]), StateDir: filepath.Dir(state.Path())}
+	home, _ := os.UserHomeDir()
+	base.Pair = consolePair(home, base.Self, defaultHostKey, setup.PairAddress)
 	// The screen changes on a state or a key press, so 15 frames a second
 	// is still instant to the eye and wakes the process 4x less than 60.
 	if root != "" {
@@ -432,10 +434,12 @@ func console(path string, cfg config.Config, root string, noMotion bool, host st
 		go s.Handle(ctx, transport.NewConn(b)) //nolint:errcheck // ends with the console
 		base.Conn = transport.NewConn(a)
 		defer base.Conn.Close()
-		_, err := tea.NewProgram(app.New(base), tea.WithFPS(15)).Run()
+		final, err := tea.NewProgram(app.New(base), tea.WithFPS(15)).Run()
+		if m, ok := final.(app.Model); ok {
+			m.ClosePair() // however the program ended, its pair code goes with it
+		}
 		return err
 	}
-	home, _ := os.UserHomeDir()
 	list := hosts.Path()
 	asked := filepath.Join(filepath.Dir(state.Path()), "asked-where")
 	sh := app.NewShell(app.ShellOptions{

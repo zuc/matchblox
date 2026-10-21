@@ -61,4 +61,62 @@ final class PairPayloadTests: XCTestCase {
             }
         }
     }
+
+    func testV2FixtureParses() throws {
+        let v1 = try Fixture.load().payload
+        let v2 = try FixtureV2.load()
+        var expected = v1
+        expected.v = 2
+        XCTAssertEqual(v2.payload, expected)
+        XCTAssertEqual(try PairPayload(url: URL(string: v2.url)!), v2.payload)
+    }
+
+    /// firstLink finds the link in any case, so the payload reads it in any case too.
+    func testSchemeAndHostInAnyCase() throws {
+        let v2 = try FixtureV2.load()
+        let token = v2.url.dropFirst("matchblox://pair?p=".count)
+        for head in ["MATCHBLOX://PAIR?p=", "Matchblox://Pair?p="] {
+            let pasted = try XCTUnwrap(Pairing.firstLink(in: "Open \(head)\(token) now"), head)
+            XCTAssertEqual(try PairPayload(url: pasted), v2.payload, head)
+        }
+    }
+
+    func testV2Refusals() throws {
+        let v2 = try FixtureV2.load()
+        let good = Data(base64URL: String(v2.url.dropFirst("matchblox://pair?p=".count)))!
+        let head = 67
+        func link(_ bytes: Data) -> URL { url(carrying: bytes) }
+        func with(_ tail: String) -> URL { link(good.prefix(head) + Data(tail.utf8)) }
+        let p = v2.payload
+        func port(_ n: Int) -> URL {
+            var bytes = good
+            bytes[1] = UInt8(n >> 8)
+            bytes[2] = UInt8(n & 0xff)
+            return link(bytes)
+        }
+        let cases: [(String, URL, PairError)] = [
+            ("short", link(good.prefix(40)), .malformed),
+            ("version 3", link(Data([3]) + good.dropFirst()), .version(3)),
+            ("no separator", with("\(p.host) \(p.user)\0\(p.name)"), .malformed),
+            ("one separator", with("\(p.host)\0\(p.user)\(p.name)"), .malformed),
+            ("four parts", with("\(p.host)\0\(p.user)\0\(p.name)\0x"), .malformed),
+            ("no host", with("\0\(p.user)\0\(p.name)"), .malformed),
+            ("no user", with("\(p.host)\0\0\(p.name)"), .malformed),
+            ("no name", with("\(p.host)\0\(p.user)\0"), .malformed),
+            ("port 0", port(0), .malformed),
+            ("bad base64", URL(string: "matchblox://pair?p=!!!")!, .malformed),
+        ]
+        for (name, url, expected) in cases {
+            XCTAssertThrowsError(try PairPayload(url: url), name) { error in
+                XCTAssertEqual(error as? PairError, expected, name)
+            }
+        }
+    }
+}
+
+private extension Data {
+    init?(base64URL text: String) {
+        let standard = text.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        self.init(base64Encoded: standard + String(repeating: "=", count: (4 - standard.count % 4) % 4))
+    }
 }

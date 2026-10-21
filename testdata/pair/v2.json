@@ -1,0 +1,12 @@
+{
+  "payload": {
+    "v": 2,
+    "host": "ws-1.tail1234.ts.net",
+    "port": 22,
+    "user": "builder",
+    "name": "ws-1",
+    "hostkey": "SHA256:HTAHrx6XYe6mj7kCVbwPfI6FVfygp52CqBMyPnXA0OU",
+    "key": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+  },
+  "url": "matchblox://pair?p=AgAWHTAHrx6XYe6mj7kCVbwPfI6FVfygp52CqBMyPnXA0OUAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eH3dzLTEudGFpbDEyMzQudHMubmV0AGJ1aWxkZXIAd3MtMQ"
+}

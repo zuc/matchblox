@@ -33,14 +33,27 @@ struct Fixture: Codable {
     }
 
     static func load() throws -> Fixture {
-        let root = URL(fileURLWithPath: #filePath)
+        try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: file("v1")))
+    }
+
+    fileprivate static func file(_ name: String) -> URL {
+        URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-        let file = root.appendingPathComponent("testdata/pair/v1.json")
-        return try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: file))
+            .appendingPathComponent("testdata/pair/\(name).json")
+    }
+}
+
+/// The v2 vector holds the payload and its link only.
+struct FixtureV2: Codable {
+    let payload: PairPayload
+    let url: String
+
+    static func load() throws -> FixtureV2 {
+        try JSONDecoder().decode(FixtureV2.self, from: Data(contentsOf: Fixture.file("v2")))
     }
 }
 

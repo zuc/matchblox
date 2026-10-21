@@ -523,3 +523,18 @@ func TestHelpListsTheCommands(t *testing.T) {
 		t.Errorf("help lost its flags:\n%s", out)
 	}
 }
+
+// The pair door is a page in the console, not a file: setup points to it
+// and asks nothing.
+func TestSetupSaysHowToPair(t *testing.T) {
+	e := setupEnv(t)
+	var out strings.Builder
+	if err := setupDoors(e, strings.NewReader("\n\n\n\n\ny\n"), &out, func([]string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	pair := got[strings.Index(got, "Pair a device"):strings.Index(got, "Keep matchblox running")]
+	if strings.Contains(pair, "y opens it") || !strings.Contains(pair, "press Enter on it in the console, or run matchblox pair") {
+		t.Fatalf("setup:\n%s", got)
+	}
+}
