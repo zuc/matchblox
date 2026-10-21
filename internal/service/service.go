@@ -364,6 +364,7 @@ func (s *Service) publish(snap sample.Snapshot, rec func(state.Doc)) {
 	}
 	s.cur.Recommendations = advice.Build(snap, s.cur.Git)
 	s.mergeQueue()
+	s.expireFocus(s.now())
 	doc := s.cur
 	s.mu.Unlock()
 	rec(doc)

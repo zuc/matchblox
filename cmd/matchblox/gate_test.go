@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"slices"
@@ -28,6 +29,8 @@ func TestGateRunsOnlyItsCommands(t *testing.T) {
 		{"phone", "", remote.ConsoleCommand, []string{}},
 		{"phone", id, remote.ConsoleCommand, []string{}},
 		{"phone", id, "matchblox push register", []string{"push", "register", id}},
+		{"phone", id, "matchblox console --open 12", []string{}},
+		{"phone", "", "matchblox console --open 12", []string{}},
 	} {
 		got, err := gateDecision(c.mode, c.id, c.orig)
 		if err != nil || !slices.Equal(got, c.want) || got == nil {
@@ -37,6 +40,9 @@ func TestGateRunsOnlyItsCommands(t *testing.T) {
 	// A laptop key never gets the console, and an unknown mode gets nothing.
 	if argv, err := gateDecision("", "", remote.ConsoleCommand); err == nil || argv != nil {
 		t.Errorf("a laptop key opened the console: %q", argv)
+	}
+	if argv, err := gateDecision("", id, "matchblox console --open 12"); err == nil || argv != nil {
+		t.Errorf("a laptop key opened a session: %q", argv)
 	}
 	for _, orig := range []string{remote.ServeCommand, remote.ConsoleCommand, remote.PushRegisterCommand, ""} {
 		if argv, err := gateDecision("pair", id, orig); err == nil || argv != nil {
@@ -76,6 +82,19 @@ func TestGateRunsOnlyItsCommands(t *testing.T) {
 		"matchblox push register; id",
 		"matchblox push",
 		"matchblox push unregister",
+		"matchblox console --open x",
+		"matchblox console --open 12 13",
+		"matchblox console --open -1",
+		"matchblox console --open 0",
+		"matchblox console --open 012",
+		"matchblox console --open +1",
+		"matchblox console --open",
+		"matchblox console --open ",
+		"matchblox console --open  12",
+		"matchblox console --open 12 ",
+		"matchblox console --open 12; id",
+		"matchblox console --open=12",
+		"matchblox console --open 99999999999999999999",
 	} {
 		for _, mode := range []string{"", "phone"} {
 			for _, i := range []string{"", id} {
@@ -224,5 +243,70 @@ func TestGatePhoneRegistersByTheIDOfItsLine(t *testing.T) {
 	}
 	if _, _, ok := setup.DeviceIn(home, "0123456789ab"); ok {
 		t.Fatal("registering marked the device in")
+	}
+}
+
+func TestOpenTargetReadsTheNumber(t *testing.T) {
+	for orig, want := range map[string]int{
+		"matchblox console --open 12":  12,
+		"matchblox console --open 1":   1,
+		"matchblox console --open 905": 905,
+	} {
+		if n, ok := openTarget(orig); !ok || n != want {
+			t.Errorf("openTarget(%q) = %d, %v; want %d", orig, n, ok, want)
+		}
+	}
+}
+
+func TestOpenTargetRefusesAnythingElse(t *testing.T) {
+	for _, orig := range []string{
+		remote.ConsoleCommand, "",
+		"matchblox console --open x",
+		"matchblox console --open 12 13",
+		"matchblox console --open -1",
+		"matchblox console --open 0",
+		"matchblox console --open 012",
+		"matchblox console --open +1",
+		"matchblox console --open 1e3",
+		"matchblox console --open",
+		"matchblox console --open ",
+		"matchblox console --open  12",
+		"matchblox console --open 12 ",
+		"matchblox console --open 99999999999999999999",
+		"matchblox console  --open 12",
+		"matchblox console --open 12\n",
+	} {
+		if n, ok := openTarget(orig); ok {
+			t.Errorf("openTarget(%q) = %d, true", orig, n)
+		}
+	}
+}
+
+// The open asks the service to focus the session before the console runs,
+// and the device is in, as for matchblox console.
+func TestGateOpenFocusesThenRunsTheConsole(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("SSH_TTY", "/dev/ttys004")
+	t.Setenv("SSH_ORIGINAL_COMMAND", "matchblox console --open 12")
+	oldArgs, oldRun, oldFocus := os.Args, gateRun, gateFocus
+	t.Cleanup(func() { os.Args, gateRun, gateFocus = oldArgs, oldRun, oldFocus })
+	var steps []string
+	gateFocus = func(n int) error { steps = append(steps, fmt.Sprint("focus ", n)); return errors.New("no service") }
+	gateRun = func(argv []string) error { steps = append(steps, fmt.Sprintf("run %q", argv)); return nil }
+	if err := gateMain([]string{"phone", "0123456789ab"}); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(steps, []string{"focus 12", `run []`}) {
+		t.Fatalf("steps %q", steps)
+	}
+	if _, tty, ok := setup.DeviceIn(home, "0123456789ab"); !ok || tty != "/dev/ttys004" {
+		t.Fatalf("the open did not mark the device in: %q %v", tty, ok)
+	}
+	// The plain console asks for no focus.
+	steps = nil
+	t.Setenv("SSH_ORIGINAL_COMMAND", remote.ConsoleCommand)
+	if err := gateMain([]string{"phone", "0123456789ab"}); err != nil || !slices.Equal(steps, []string{`run []`}) {
+		t.Fatalf("gateMain = %v, steps %q", err, steps)
 	}
 }

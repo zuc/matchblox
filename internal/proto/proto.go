@@ -185,6 +185,8 @@ type (
 	StokerUnguard = stoker.Unguard
 	Hold          = holds.Hold
 	IdleReason    = idle.Reason
+	// Focus is the session a tap on the island or a buzz opens.
+	Focus = state.Focus
 )
 
 // NewSession is the Text of a "new:session" act: start an agent in a tmux

@@ -298,6 +298,7 @@ type Model struct {
 	pair         *pairPage    // the pair page, while it shows
 	pairPolling  bool         // a poll of the pair page is on its way
 	pairOffers   *pairWaits   // the offers of a key that still run: the end of the program waits for them
+	focusAt      time.Time    // the At of the last focus this console acted on
 }
 
 func New(opt Options) Model {
@@ -459,6 +460,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.hist.Append(history.FromSnapshot(m.snap))
 		}
 		m.keepSelection()
+		m, focus := m.takeFocus(st.Focus)
 		var news, order tea.Cmd
 		if toast != "" && !first {
 			news = m.say(toast)
@@ -466,7 +468,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.sheet != nil && m.sheet.queued && m.sheet.act == "" && m.stoker != nil && m.stoker.Ready {
 			m, order = m.sendOrder() // the stoker rests now: the order that waited for it goes
 		}
-		return m, tea.Batch(m.recv(), m.animate(), news, order)
+		return m, tea.Batch(m.recv(), m.animate(), news, order, focus)
 	case doorRanMsg:
 		return m.doorRan(msg)
 	case pairOfferMsg:
@@ -650,6 +652,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return next, tea.Batch(touch, cmd)
 	}
 	return m, nil
+}
+
+// focusGone is what a focus on a session that ended says.
+const focusGone = "That session ended."
+
+// takeFocus opens the session a tap on the island or a buzz asked for, once
+// for each focus the service sends: its answer peek when it waits, else its
+// pane, as a and Enter would. A form, sheet, pair page or take-over that is
+// open keeps the keys: what the person types there is not thrown away.
+func (m Model) takeFocus(f *proto.Focus) (Model, tea.Cmd) {
+	if f == nil || f.At.Equal(m.focusAt) {
+		return m, nil
+	}
+	m.focusAt = f.At
+	var s sample.Session
+	found := false
+	for _, x := range m.snap.Sessions {
+		if f.SessionID != "" && x.SessionID == f.SessionID || f.SessionID == "" && f.Pane != "" && x.Pane == f.Pane {
+			s, found = x, true
+			break
+		}
+	}
+	if f.Gone || !found {
+		m.flash = focusGone
+		return m, nil
+	}
+	if m.pair.owns() || m.sheet != nil || m.form != nil || m.held != nil {
+		return m, nil
+	}
+	m.setTab(tabSessions)
+	m.pending, m.peek = nil, nil
+	m.doorPick, m.recPick, m.chose, m.selPID = "", "", true, s.PID
+	if s.Pane == "" {
+		return m, nil // outside tmux: no pane to open
+	}
+	if _, waits := m.waitOf(s); waits {
+		m.openPeek(s.Pane)
+		return m, nil
+	}
+	next, cmd := m.confirm(*m.jump(s.Pane))
+	return next.(Model), cmd
 }
 
 // olderLocal tells if the local service should give way to this console:

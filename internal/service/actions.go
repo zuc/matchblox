@@ -90,6 +90,9 @@ func (s *Service) act(ctx context.Context, a proto.Act) proto.Result {
 	if a.RecID == NamesAct {
 		return s.names() // it reads; the stoker goes on resting
 	}
+	if strings.HasPrefix(a.RecID, focusPrefix) {
+		return s.focus(a) // it moves the consoles; the stoker goes on resting
+	}
 	// A session the stoker drove speaks for the stoker: what it sends
 	// counts and drives, and it gives no go.
 	agent := s.agentsPane(a)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/blox-eng/matchblox/internal/advice"
 	"github.com/blox-eng/matchblox/internal/doors"
@@ -44,6 +45,19 @@ type Doc struct {
 	Agents []string `json:"agents,omitempty"`
 	// Renames are the names sessions take at their next rest, by pane.
 	Renames map[string]string `json:"renames,omitempty"`
+	// Focus is the session a tap on the island or a buzz opened on a phone,
+	// for a short while after: each console acts on it once, by its At.
+	// Nil: none.
+	Focus *Focus `json:"focus,omitempty"`
+}
+
+// Focus is the session to open: its pane, or Gone when its number's
+// session ended.
+type Focus struct {
+	SessionID string    `json:"session_id,omitempty"`
+	Pane      string    `json:"pane,omitempty"`
+	Gone      bool      `json:"gone,omitempty"`
+	At        time.Time `json:"at"`
 }
 
 // Path is $XDG_STATE_HOME/matchblox/state.json, defaulting to ~/.local/state.
