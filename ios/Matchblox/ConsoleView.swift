@@ -16,6 +16,7 @@ struct ConsoleView: View {
 
     init(
         host: Host,
+        open: Int? = nil,
         onFailure: @escaping (ConnectFailure) -> Void,
         onHosts: (() -> Void)?,
         onScanAgain: @escaping () -> Void
@@ -23,7 +24,7 @@ struct ConsoleView: View {
         self.host = host
         self.onHosts = onHosts
         self.onScanAgain = onScanAgain
-        _connection = State(initialValue: ConsoleConnection(host: host, onFailure: onFailure))
+        _connection = State(initialValue: ConsoleConnection(host: host, open: open, onFailure: onFailure))
     }
 
     var body: some View {
@@ -144,11 +145,16 @@ final class ConsoleConnection {
     @ObservationIgnored private var outgoing: AsyncStream<Outgoing>.Continuation?
     /// One unlock serves every reconnect until the app goes to the background.
     @ObservationIgnored private var unlocked: LAContext?
+    /// Registration runs once for each open, after the unlock.
+    @ObservationIgnored private var registered = false
+    /// The session a tapped link opens; the console opens plainly once it has been live.
+    @ObservationIgnored private var openSession: Int?
     private let host: Host
     private let onFailure: (ConnectFailure) -> Void
 
-    init(host: Host, onFailure: @escaping (ConnectFailure) -> Void) {
+    init(host: Host, open: Int?, onFailure: @escaping (ConnectFailure) -> Void) {
         self.host = host
+        self.openSession = open
         self.onFailure = onFailure
     }
 
@@ -162,6 +168,7 @@ final class ConsoleConnection {
         cancel()
         unlocked?.invalidate()
         unlocked = nil
+        registered = false
     }
 
     func retry() {
@@ -195,6 +202,13 @@ final class ConsoleConnection {
                 return
             }
             guard !Task.isCancelled else { return }
+            if !registered {
+                registered = true
+                let host = host
+                let context = unlocked
+                // Beside the console, never before it: an error is logged, nothing more.
+                Task { await Registration.afterOpen(host: host, key: key, context: context, hosts: HostStore.standard.all()) }
+            }
 
             let session = SSHSession(
                 host: host.address,
@@ -236,7 +250,7 @@ final class ConsoleConnection {
         let size = terminalSize
         let output: AsyncStream<Data>
         do {
-            output = try await session.open(command: "matchblox console", pty: size)
+            output = try await session.open(command: Opening.consoleCommand(host: host, open: openSession), pty: size)
         } catch {
             return .failed(error)
         }
@@ -261,6 +275,7 @@ final class ConsoleConnection {
 
         terminal?.getTerminal().resetToInitialState()
         phase = .live
+        openSession = nil
         let now = terminalSize
         if now != size {
             sink.yield(.resize(cols: now.cols, rows: now.rows))

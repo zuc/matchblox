@@ -3,8 +3,9 @@ import Foundation
 public enum Route: Equatable, Sendable {
     case scan
     case pair(PairDraft)
-    case console(Host)
+    case console(Host, open: Int?)
     case hosts
+    case island
     case reach(Host, ConnectFailure)
 }
 
@@ -13,7 +14,7 @@ public enum Opening {
     public static func first(hosts: [Host]) -> Route {
         switch hosts.count {
         case 0: .scan
-        case 1: .console(hosts[0])
+        case 1: .console(hosts[0], open: nil)
         default: .hosts
         }
     }

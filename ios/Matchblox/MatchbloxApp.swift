@@ -1,9 +1,35 @@
 import MatchbloxKit
 import SwiftUI
 
+/// Asks iOS for the push tokens at launch and ends stray activities. Nothing here connects to a host.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        MainActor.assumeIsolated {
+            PushTokens.shared.begin()
+            IslandSettings.endStrayActivities()
+        }
+        return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let token = hexToken(deviceToken)
+        MainActor.assumeIsolated { PushTokens.shared.device = token }
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        islandLog.error("no device token: \(String(describing: error), privacy: .public)")
+    }
+}
+
 @main
 struct MatchbloxApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     private let store = HostStore.standard
+    /// A tapped link opens a new console even when one is open.
+    @State private var linkOpens = 0
     @State private var route = Opening.first(hosts: HostStore.standard.all())
     @State private var scanProblem: String?
     @State private var scanNotice: String?
@@ -27,26 +53,29 @@ struct MatchbloxApp: App {
                         onPaired: { host in
                             // The console slides in from the drawer side.
                             withAnimation(UIAccessibility.isReduceMotionEnabled ? nil : .easeOut(duration: 0.3)) {
-                                go(.console(host))
+                                go(.console(host, open: nil))
                             }
                         },
                         onScanAgain: { go(.scan) }
                     )
                     .id(draft.payload.key)
-                case .console(let host):
+                case .console(let host, let session):
                     ConsoleView(
                         host: host,
+                        open: session,
                         onFailure: { go(.reach(host, $0)) },
                         onHosts: store.all().count > 1 ? { go(.hosts) } : nil,
                         onScanAgain: { go(.scan) }
                     )
+                    .id("\(host.fingerprint)#\(linkOpens)")
                     .transition(.move(edge: .trailing))
                     .zIndex(1)
                 case .hosts:
                     HostsView(
                         store: store,
-                        onOpen: { go(.console($0)) },
+                        onOpen: { go(.console($0, open: nil)) },
                         onPair: { go(.scan) },
+                        onIsland: { go(.island) },
                         onNoHosts: { notice in
                             go(.scan)
                             scanNotice = notice
@@ -57,9 +86,11 @@ struct MatchbloxApp: App {
                         host: host,
                         failure: failure,
                         store: store,
-                        onRetry: { go(.console($0)) },
+                        onRetry: { go(.console($0, open: nil)) },
                         onScanAgain: { go(.scan) }
                     )
+                case .island:
+                    IslandView(store: store, onBack: { go(Opening.first(hosts: store.all()) == .scan ? .scan : .hosts) })
                 }
             }
             .foregroundStyle(Theme.fg)
@@ -76,8 +107,20 @@ struct MatchbloxApp: App {
         route = next
     }
 
-    /// An open console gives way only to a new pairing code.
+    /// A tapped session (`matchblox://open`) opens that host's console after Face ID; an
+    /// open console gives way to it and to a new pairing code only.
     private func open(_ url: URL) {
+        if url.host == "open" {
+            if let link = OpenLink(url: url) {
+                linkOpens += 1
+                go(Opening.route(for: link, hosts: store.all()))
+            } else if case .console = route {
+                return
+            } else {
+                go(Opening.first(hosts: store.all()) == .scan ? .scan : .hosts)
+            }
+            return
+        }
         if case .console = route, url.host?.lowercased() != "pair" { return }
         do {
             let payload = try PairPayload(url: url)

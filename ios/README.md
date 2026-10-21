@@ -89,3 +89,38 @@ device before a release. `ws-1` is the host.
     mobile data). The app has no keepalive yet: write down what you see.
 15. Pair two hosts. Swipe to remove one. The app says how to remove its
     key on the host.
+
+### The buzz and the island
+
+Use a private test host with its own `matchblox serve` (the door
+`Keep matchblox running` in `matchblox setup`). `ws-1` is the host; `work-1`
+is a second paired host.
+
+16. Open the console of `ws-1` once, so the app registers. Allow
+    notifications when the app asks. `matchblox devices` on `ws-1` shows
+    `push` next to the device.
+17. The buzz with the app closed: quit the app. Make a session on `ws-1`
+    wait. The device shows `ws-1 · <session> waits: "<question>"` within
+    30 s, with no app open.
+18. Push to start: with no island on the device, start a session on
+    `ws-1`. The island starts with the app closed.
+19. Both faces: on the Island screen (Hosts, then Island), pick `Sessions`.
+    The island shows the Sessions face. Pick `Usage`: it shows the windows
+    and the forecast. Pick `Auto (Usage while the stoker runs)`, then turn
+    the stoker on and off on the host: the face follows.
+20. Show changes the face at once, with no Face ID and no connect.
+21. A second host buzzes and does not take the island: keep `Follow` on
+    `ws-1`, make a session on `work-1` wait. The device buzzes for `work-1`;
+    the island still shows `ws-1`.
+22. Change `Follow` to `work-1`. One Face ID; then the island of `ws-1` ends
+    and `work-1` can start one. Turn off the network of `ws-1` first, and
+    the screen says `ws-1 is not reachable: it changes at the next connect`.
+23. Turn `Buzz` off for `ws-1`. One Face ID. A wait on `ws-1` no longer
+    buzzes; `work-1` still does.
+24. A tap opens the session: tap the island, and tap a buzz. After Face ID,
+    the console of that host opens on that session. A session that ended
+    says `That session ended.`
+25. Stray activities end at launch: follow `ws-1`, let its island run,
+    then make `ws-1` unreachable and change `Follow` to `work-1`. The island
+    of `ws-1` shows nothing. Quit and open the app: the activity of `ws-1`
+    is gone.

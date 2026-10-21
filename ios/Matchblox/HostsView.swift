@@ -5,6 +5,7 @@ struct HostsView: View {
     let store: HostStore
     let onOpen: (Host) -> Void
     let onPair: () -> Void
+    let onIsland: () -> Void
     let onNoHosts: (String) -> Void
 
     @State private var hosts: [Host] = []
@@ -34,6 +35,9 @@ struct HostsView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .contextMenu {
+                        Button("Island", action: onIsland)
+                    }
                     .listRowBackground(Theme.bg)
                     .listRowSeparatorTint(Theme.hair)
                 }
@@ -41,8 +45,12 @@ struct HostsView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            Button("+ Pair a host", action: onPair)
-                .foregroundStyle(Theme.accent)
+            HStack(spacing: 24) {
+                Button("+ Pair a host", action: onPair)
+                    .foregroundStyle(Theme.accent)
+                Button("Island", action: onIsland)
+                    .foregroundStyle(Theme.muted)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(24)
