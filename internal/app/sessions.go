@@ -300,7 +300,7 @@ func (m Model) sessionKeys() []hint {
 	keys := []hint{{"⏎", "open", "enter"}}
 	s, ok := m.selectedSession()
 	if ok && s.Pane != "" {
-		keys = append(keys, hint{"a", m.peekWord(s), "a"}, hint{"x", "kill", "x"}, hint{"r", "rename", "r"}, hint{"z", m.parkWord(s), "z"})
+		keys = append(keys, hint{"a", m.peekWord(s), "a"}, hint{"x", "kill", "x"}, hint{"r", "rename", "r"}, hint{"A", "switch", "A"}, hint{"z", m.parkWord(s), "z"})
 	}
 	return append(keys, hint{"N", "new", "N"}, hint{"p", "ships", "p"}, hint{"f", "stoker", "f"})
 }
@@ -497,11 +497,49 @@ func (m Model) opened(s sample.Session, w int) []string {
 	case "clear":
 		left += "  " + st.warn.Render("▲ clear")
 	}
-	keys := st.accent.Render("⏎") + st.muted.Render(" open") + " "
-	if s.Pane != "" {
-		keys = st.accent.Render("a") + st.muted.Render(" "+m.peekWord(s)+"  ") + keys
+	keys, _ := m.openedKeys(s, w)
+	if strings.TrimSpace(left) != "" && lipgloss.Width(left)+lipgloss.Width(keys)+1 > w {
+		out, left = append(out, left), "" // the plan and the keys get a line each
 	}
 	return append(out, spread(left, keys, w))
+}
+
+// openedKeys are the keys on the right of an opened row, and where a tap
+// presses each, in columns of the row.
+func (m Model) openedKeys(s sample.Session, w int) (string, []span) {
+	hs := []hint{{"⏎", "open", "enter"}}
+	if s.Pane != "" {
+		hs = []hint{{"a", m.peekWord(s), "a"}, {"A", "switch", "A"}, hs[0]}
+	}
+	keys, spans := m.hintRow(hs, 2)
+	keys += " "
+	return keys, shift(spans, w-lipgloss.Width(keys))
+}
+
+// hintRow is hints on one line, gap columns apart, and where a tap on each
+// presses its key, in columns of the line.
+func (m Model) hintRow(hs []hint, gap int) (string, []span) {
+	line, x := "", 0
+	var spans []span
+	for i, h := range hs {
+		if i > 0 {
+			line += strings.Repeat(" ", gap)
+			x += gap
+		}
+		part := m.st.accent.Render(h.key) + m.st.muted.Render(" "+h.label)
+		spans = append(spans, span{x, x + lipgloss.Width(part), h.press})
+		line += part
+		x += lipgloss.Width(part)
+	}
+	return line, spans
+}
+
+func shift(spans []span, dx int) []span {
+	out := make([]span, len(spans))
+	for i, s := range spans {
+		out[i] = span{s.x0 + dx, s.x1 + dx, s.press}
+	}
+	return out
 }
 
 // lastWords is what the agent said last: its queue row's message while it
@@ -677,17 +715,22 @@ func (m Model) sessionDetail(s sample.Session, w, said int) ([]string, bool) {
 			out = append(out, " "+st.faint.Render(l))
 		}
 	}
-	keys := " "
+	keys, _ := m.detailKeys(s)
+	return append(out, "", fit(keys, w)), cut
+}
+
+// detailKeys are the keys under a session's detail, and where a tap
+// presses each, in columns of the pane.
+func (m Model) detailKeys(s sample.Session) (string, []span) {
+	var hs []hint
 	if s.Pane != "" {
-		keys += st.accent.Render("a") + st.muted.Render(" "+m.peekWord(s)+"   ")
-	}
-	if s.Pane != "" {
-		keys += st.accent.Render("⏎") + st.muted.Render(" open it")
+		hs = append(hs, hint{"a", m.peekWord(s), "a"}, hint{"⏎", "open it", "enter"}, hint{"A", "switch agent", "A"})
 	}
 	if s.Age() == "stale" {
-		keys += "   " + st.accent.Render("x") + st.muted.Render(" end it")
+		hs = append(hs, hint{"x", "end it", "x"})
 	}
-	return append(out, "", fit(keys, w)), cut
+	keys, spans := m.hintRow(hs, 3)
+	return " " + keys, shift(spans, 1)
 }
 
 // facts are the figures of a session the rows have no room for.

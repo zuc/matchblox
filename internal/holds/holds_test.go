@@ -1,6 +1,8 @@
 package holds
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -60,5 +62,66 @@ func TestPruneDropsAHoldGoneForADay(t *testing.T) {
 	_ = s.Prune(nil, t0.Add(24*time.Hour))
 	if _, ok := s.Of("s1"); ok {
 		t.Fatal("kept after 24 h")
+	}
+}
+
+func TestAHoldMarkedRebindMovesToTheNextSessionInItsPane(t *testing.T) {
+	dir := t.TempDir()
+	s, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Set(Hold{SessionID: "old", Pane: "%1", By: ByYou, Rebind: true}); err != nil {
+		t.Fatal(err)
+	}
+	if h, ok := s.Pending("%1"); !ok || h.SessionID != "old" {
+		t.Fatalf("pending %%1: %+v %v", h, ok)
+	}
+	if _, ok := s.Pending("%2"); ok {
+		t.Fatal("%2 has no pending hold")
+	}
+	for _, id := range []string{"old", ""} {
+		if moved, err := s.Rebind("%1", id); moved || err != nil {
+			t.Fatalf("rebind to %q: %v %v", id, moved, err)
+		}
+	}
+	if h, ok := s.Of("old"); !ok || !h.Rebind {
+		t.Fatalf("old changed: %+v %v", h, ok)
+	}
+	if moved, err := s.Rebind("%1", "new"); !moved || err != nil {
+		t.Fatalf("rebind: %v %v", moved, err)
+	}
+	check := func(s *Store) {
+		t.Helper()
+		if h, ok := s.Of("new"); !ok || h.By != ByYou || h.Pane != "%1" || h.Rebind {
+			t.Fatalf("new: %+v %v", h, ok)
+		}
+		if _, ok := s.Of("old"); ok {
+			t.Fatal("old is still held")
+		}
+		if _, ok := s.Pending("%1"); ok {
+			t.Fatal("%1 is still pending")
+		}
+	}
+	check(s)
+	re, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(re)
+}
+
+func TestRebindRoundTripsThroughJSONAndAPlainHoldHasNoKey(t *testing.T) {
+	b, err := json.Marshal(Hold{SessionID: "a", Rebind: true})
+	if err != nil || !strings.Contains(string(b), `"rebind":true`) {
+		t.Fatalf("%s %v", b, err)
+	}
+	var h Hold
+	if err := json.Unmarshal(b, &h); err != nil || !h.Rebind {
+		t.Fatalf("%+v %v", h, err)
+	}
+	b, _ = json.Marshal(Hold{SessionID: "a"})
+	if strings.Contains(string(b), "rebind") {
+		t.Fatalf("plain hold: %s", b)
 	}
 }

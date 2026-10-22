@@ -5,6 +5,7 @@ import (
 
 	"github.com/blox-eng/matchblox/internal/holds"
 	"github.com/blox-eng/matchblox/internal/proto"
+	"github.com/blox-eng/matchblox/internal/sample"
 	"github.com/blox-eng/matchblox/internal/stoker"
 )
 
@@ -21,19 +22,41 @@ func (s *Service) heldOf(sessionID string) (holds.Hold, bool) {
 	return s.Holds.Of(sessionID)
 }
 
-// heldSessions is the session ids the stoker leaves alone. Nil: none.
+// heldIn is the hold on x, the session in pane, or the hold of a switch
+// that waits for the new agent's session id there.
+func (s *Service) heldIn(pane string, x sample.Session) (holds.Hold, bool) {
+	if h, ok := s.heldOf(x.SessionID); ok {
+		return h, true
+	}
+	if s.Holds == nil {
+		return holds.Hold{}, false
+	}
+	return s.Holds.Pending(pane)
+}
+
+// heldSessions is the session ids the stoker leaves alone, a switched
+// seat's new session among them before its hold moves to it. Nil: none.
 func (s *Service) heldSessions() map[string]bool {
 	if s.Holds == nil {
 		return nil
 	}
-	return s.Holds.Held()
+	held := s.Holds.Held()
+	for _, h := range s.Holds.List() {
+		if !h.Rebind {
+			continue
+		}
+		if x, ok := s.sessionAt(h.Pane); ok && x.SessionID != "" {
+			held[x.SessionID] = true
+		}
+	}
+	return held
 }
 
 // holdAt is the hold on the session in pane, or on the one that was there
 // when it was held and is gone from the snapshot.
 func (s *Service) holdAt(pane string) (holds.Hold, bool) {
 	if x, ok := s.sessionAt(pane); ok {
-		return s.heldOf(x.SessionID)
+		return s.heldIn(pane, x)
 	}
 	if s.Holds != nil {
 		for _, h := range s.Holds.List() {

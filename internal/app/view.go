@@ -132,6 +132,10 @@ type drawn struct {
 	formAgentsAt int
 	formAgents   []span
 	stokerAt     span // the header's stoker word
+	// The selected session's own keys, on its opened row or under its
+	// detail: their line, and the key a tap on each presses.
+	actKeysAt int
+	actKeys   []span
 }
 
 // draw lays out the screen, top to bottom: the header, the tabs, a
@@ -142,7 +146,7 @@ func (m Model) draw(w int) drawn {
 	head, waits, stokerAt := m.header(w)
 	tabs, tabSpans := m.tabsLine(w)
 	sc := drawn{lines: []string{head, tabs, m.st.rule.Render(strings.Repeat("─", w))}, waits: waits, stokerAt: stokerAt, tabs: tabSpans,
-		bodyTop: 3, listW: w, dockAt: -1, keysAt: -1}
+		bodyTop: 3, listW: w, dockAt: -1, keysAt: -1, actKeysAt: -1}
 	switch {
 	case m.mismatch:
 		sc.lines = append(sc.lines, "", m.mismatchText(w))
@@ -215,6 +219,7 @@ func (m Model) draw(w int) drawn {
 		}
 		sc.lines, sc.rows = append(sc.lines, line), append(sc.rows, row)
 	}
+	m.markActKeys(&sc, vis, detail, room, detailW, inline)
 	if len(d.lines) > 0 {
 		sc.dockAt, sc.dockH, sc.stx0, sc.stx1 = len(sc.lines)+1, len(d.lines), d.stx0, d.stx1
 		sc.lines = append(append(sc.lines, m.st.hair.Render(strings.Repeat("─", w))), d.lines...)
@@ -223,6 +228,8 @@ func (m Model) draw(w int) drawn {
 	sc.keysAt, sc.keys = len(sc.lines)+1, keySpans
 	sc.lines = append(sc.lines, m.st.hair.Render(strings.Repeat("─", w)), keys)
 	switch {
+	case m.consenting():
+		m.overlayConsent(&sc, w)
 	case m.sheet != nil:
 		m.overlaySheet(&sc, w)
 	case m.form != nil:
@@ -231,6 +238,31 @@ func (m Model) draw(w int) drawn {
 		m.overlayPeek(&sc, w)
 	}
 	return sc
+}
+
+// markActKeys finds the selected session's own keys: the last line of its
+// opened row on a phone, the last line of its detail beside the list.
+func (m Model) markActKeys(sc *drawn, vis body, detail []string, room, detailW int, inline bool) {
+	s, ok := m.selectedSession()
+	if !ok || m.tab != tabSessions {
+		return
+	}
+	switch {
+	case detailW > 0 && !inline && len(detail) <= room:
+		_, spans := m.detailKeys(s)
+		sc.actKeysAt, sc.actKeys = sc.bodyTop+len(detail)-1, shift(spans, sc.listW+1)
+	case detailW == 0 && m.layoutAt(m.width) == Narrow:
+		last := -1
+		for i, r := range vis.rows {
+			if r == m.rowIndex() {
+				last = i
+			}
+		}
+		if last > 0 && vis.rows[last-1] == m.rowIndex() { // opened: more than its one line
+			_, spans := m.openedKeys(s, sc.listW)
+			sc.actKeysAt, sc.actKeys = sc.bodyTop+last, spans
+		}
+	}
 }
 
 // panes splits Sessions into the list and the detail: at the middle on an
@@ -477,6 +509,9 @@ func (m Model) keyLine(w int) (string, []span) {
 	if m.searching {
 		return fit(" "+st.label.Render("/ ")+st.text.Render(m.filter)+st.accent.Render("▏")+"  "+st.faint.Render("⏎ keep  esc clear"), w), nil
 	}
+	if m.consenting() {
+		return "", nil // the box says it all
+	}
 	if m.held != nil {
 		switch {
 		case m.flash != "":
@@ -544,7 +579,7 @@ func (m Model) keyLine(w int) (string, []span) {
 
 // spareKeys are the keys a short key line drops first, in that order:
 // each one is reached another way (a tab tap, the dock, the docs).
-var spareKeys = []string{"↑↓", "q", "/", "p", "z", "f"}
+var spareKeys = []string{"A", "↑↓", "q", "/", "p", "z", "f"}
 
 // fitHints drops spare keys until the hints fit in room columns. The
 // row's own keys always stay: a line that is still too long is cut.
@@ -646,6 +681,9 @@ func (m Model) prOf(cwd string) *proto.PR {
 func place(target, id string) string {
 	if target != "" {
 		return target
+	}
+	if id == "" {
+		return "outside tmux"
 	}
 	return id
 }

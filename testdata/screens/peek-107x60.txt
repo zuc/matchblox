@@ -57,4 +57,4 @@
                                                      │ 1900     claude              0%   9.8M    pane %8 ·…
                                                      │ 4242     bash                0%   9.8M    pane %9
 ───────────────────────────────────────────────────────────────────────────────────────────────────────────
- ⏎ open  a answer  x kill  r rename  z park  N new  p ships  f stoker                       sampled 0s ago
+ ⏎ open  a answer  x kill  r rename  A switch  z park  N new  p ships  f stoker             sampled 0s ago

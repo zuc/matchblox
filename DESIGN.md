@@ -167,7 +167,7 @@ Rules:
 | Out | 400 ms | a session stops (§4) |
 | Burn | 600 ms | a session reaches the compact limit (§4) |
 | Fade | 140 ms | new values, menus |
-| Rise | 180 ms | the confirm bar, toasts |
+| Rise | 180 ms | the consent box, toasts |
 | Fall | 560 ms | the start screen (§3) |
 | Stamp | 240 ms | a confirmed destructive action |
 | Heal | 240 ms | a corrected figure shows "was X" |
@@ -270,8 +270,8 @@ Reduce Motion.
   <repo>`, the title, `TRACK` with the five stages down (their times, the
   note on the current one, `┃` between done stages, `┆` after), the URL and
   the keys. `⏎` selects the driving session in Sessions; `x` on a ship
-  that waits for your merge shows `RUN gh pr merge <n> --<method> -R
-  <repo>` and runs it after a typed `y`; `a` on a stuck ship opens the
+  that waits for your merge asks `gh pr merge <n> --<method> -R
+  <repo>` in the consent box and runs it after a typed `y`; `a` on a stuck ship opens the
   answer peek on its session.
 - **Peek** (design/0006 §6, owner 2026-10-12): `a` on any session with a
   pane, or a tap on the selected one, opens the conversation: an answer to
@@ -309,10 +309,24 @@ Reduce Motion.
   tap target (`⏎ open  a answer  p ships  f stoker`, `a message` on a
   session that does not wait); a desk adds `↑↓
   move`, `/ find` and `q quit`, and "sampled N ago" on the right. It is
-  also where the person acts: a tap shows `tap again: <command>`, a pending
-  action shows `RUN <command>` and its confirm, `/` the search, and the
-  stoker asks to take over here. A phone app that
-  shrinks the terminal for its keyboard keeps the bottom row above it.
+  also where the person acts: a tap shows `tap again: <command>`, and `/`
+  the search. A phone app that shrinks the terminal for its keyboard keeps
+  the bottom row above it.
+- **Consent** (owner 2026-10-22, #158, reversing the key line's RUN of
+  2026-10-12): a pending step, and the stoker's take-over, ask in a box
+  over the dimmed screen, the kind the peek and the forms are. Its title is
+  what the step does (`Kill spark-docs`, `neg` when it is destructive), its
+  lines how (the exact commands, one each), its foot the key: `y run ─ any
+  other key cancels`, or `⏎ run ─ esc cancels` for a move. On a phone it
+  rises from the key line's hairline, under the thumb and above the
+  keyboard; wider, it sits in the middle, no wider than what it says. The
+  second `y` of a session that works or waits changes the same box. A tap
+  anywhere cancels it: a tap is never consent. The key line under it is
+  blank: the box says it all. Inside, a blank row over and under its
+  words and two columns of indent past the frame's own; a step of
+  several (`kill-pane`, then `kill -TERM`) takes a line each. A door's long diff keeps its
+  confirm on the key line: the diff fills the body, and a box would hide
+  what it asks about.
 - **Widths:** the shape picks first. A cell is about twice as tall as it
   is wide, so a screen is portrait when rows × 2 ≥ columns. Portrait under
   90 columns is a phone: one column, the selected row opens in place; from
@@ -395,7 +409,7 @@ Reduce Motion.
   night") sits with the doors and folds after the first run.
   While a run is in charge the whole console wears the night (§2.1) and the
   word takes the `night` token. The first key or second tap that acts on a
-  session (an act's `Enter`, `x`, `a`) asks on the key line `The stoker
+  session (an act's `Enter`, `x`, `a`) asks in the consent box `The stoker
   is on. Take over?  y rests it while you work · n keeps it on`, once a run
   (#45, owner 2026-10-11). What was pressed is held and runs after the
   answer; any other key drops both. `y` rests the stoker: the day look,

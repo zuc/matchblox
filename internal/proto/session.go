@@ -2,11 +2,13 @@ package proto
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/blox-eng/matchblox/internal/panes"
 	"github.com/blox-eng/matchblox/internal/sample"
 )
 
@@ -30,6 +32,24 @@ func CheckName(name string) error {
 		return errors.New("a name is 40 characters at most")
 	case !nameRe.MatchString(name):
 		return errors.New("a name is letters, digits, - and _, and starts with a letter or a digit")
+	}
+	return nil
+}
+
+// ErrDash is CheckFirst's refusal of a message that starts with a dash.
+var ErrDash = errors.New("does not start with -")
+
+// CheckFirst checks the first message an agent starts with, what in the
+// refusal ("the first message", "the handoff"): one line it takes as typed.
+// The console checks before it sends, the service again.
+func CheckFirst(text, what string) error {
+	if err := panes.CheckAnswer(text); err != nil {
+		return errors.New(strings.Replace(err.Error(), "the answer", what, 1))
+	}
+	// It goes to the agent as an argument: one that starts with a dash
+	// would be read as a flag (--dangerously-skip-permissions).
+	if strings.HasPrefix(strings.TrimSpace(text), "-") {
+		return fmt.Errorf("%s %w", what, ErrDash)
 	}
 	return nil
 }

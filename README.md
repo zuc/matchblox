@@ -63,6 +63,10 @@ The full walk is [Get started](https://docs.matchblox.com/start/).
   agent, in the right pane where there is one, else a peek at the bottom of
   a phone. When it asks with its question tool, its options are there and a
   digit answers; an agent at work takes a message.
+- **Switch the agent, keep the seat**: `A` runs another agent in the same
+  pane (Claude Code, Codex, OpenCode or Cursor) with the session's name,
+  directory and pull request. The new agent gets a handoff to read the
+  working tree and carry on. `matchblox switch` does it from the shell.
 - **Ships**: every pull request your sessions drive, on one track from CI
   to live, said in words. One that waits for you merges after a typed `y`.
 - **The dock**: what `/usage` says for each account, in percentages; the
@@ -92,6 +96,7 @@ More in [The console](https://docs.matchblox.com/console/).
 | `Enter` | The safe action: go to the agent's pane. |
 | `a` | Answers the selected agent, or sends it a message. |
 | `x` | The destructive action. It runs only after a typed `y`. |
+| `A` | Switches the selected session to another agent in the same pane. |
 | `1-7` | Opens a tab: Sessions, Ships, Machine, Git, History, Panes, Stoker. |
 | `u` | Cycles the dock of a phone: usage, the machine, the stoker. |
 | `/` | Searches the open tab. |
@@ -105,7 +110,7 @@ Every key: [Keys](https://docs.matchblox.com/keys/).
 Set the startup snippet of your SSH app (Termius, for example) to
 `matchblox`, or run `ssh -t ws-1 matchblox`. The console is the first
 screen. Tap a row twice to answer it or send it a message, `Enter` to go to
-its pane; tap `◂ matchblox` in the tmux
+its pane, `A switch` under it to give its seat to another agent; tap `◂ matchblox` in the tmux
 status line (with `set -g mouse on`) to come back, or press `prefix m`. See
 [The phone](https://docs.matchblox.com/phone/).
 

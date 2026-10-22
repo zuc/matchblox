@@ -40,7 +40,10 @@ tmux new -s app agent
 ```
 
 Cursor's CLI counts whether you start it as `agent` or `cursor-agent`. The
-first run lists it in `agents` as `cursor-agent`.
+first run lists it in `agents` as `cursor-agent`. matchblox starts it with
+`--trust`, so its first turn does not wait on the trust prompt; Cursor
+then trusts the workspace's own config (its rules and MCP servers)
+without asking.
 
 **Any other agent**, for example aider
 

@@ -19,7 +19,7 @@
  ○ Clear kindle-web (%5)                  │ min · ✻ team@example.com · Max · pid 1400
  ○ Clear cinder-ci (%6)                   │ · 1 process · started 3h20m ago
  ○ Clear flint-auth (%2)                  │
- ○ Clear ember-billing (%8)               │ a answer   ⏎ open it
+ ○ Clear ember-billing (%8)               │ a answer   ⏎ open it   A switch agent
  ○ Clear wick-mobile (%7)                 │
                                           │
                                           │

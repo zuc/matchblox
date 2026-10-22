@@ -411,11 +411,20 @@ func (s Shell) render() string {
 	if s.firstRun() && !s.adding {
 		out = append(out, "", fit(" "+st.faint.Render("You can add a host later: esc in a console comes back here."), w))
 	}
-	// The action line is at the bottom, as in a console (design/0006 §11.1).
+	// The action line is at the bottom, as in a console (design/0006 §11.1);
+	// a step to confirm is a box over the dimmed list (#158).
 	for len(out) < s.height-2 {
 		out = append(out, "")
 	}
 	out = append(out, st.hair.Render(strings.Repeat("─", w)), s.actionLine(w))
+	if s.pending != nil {
+		phone := layout(w, s.height) == Narrow || portrait(w, s.height)
+		bw := min(w, 72)
+		if !phone {
+			bw = min(s.pending.width()+4, 72, w-8)
+		}
+		layBox(st, out, w, bw, phone, stepBox(st, *s.pending, bw))
+	}
 	return strings.Join(out, "\n")
 }
 
@@ -425,7 +434,7 @@ func (s Shell) actionLine(w int) string {
 	case s.input != nil:
 		return fit(" "+st.label.Render("HOST ")+st.text.Render(*s.input)+st.accent.Render("▏")+"  "+st.faint.Render("⏎ connect  esc cancel"), w)
 	case s.pending != nil:
-		return fit(" "+st.label.Render("RUN ")+st.text.Render(s.pending.String())+"   "+st.neg.Render("y")+st.muted.Render(" run  any other key cancels"), w)
+		return "" // the box says it all
 	case s.flash != "":
 		return fit(" "+st.text.Render(s.flash), w)
 	case s.adding:

@@ -13,6 +13,9 @@ import (
 
 func footerOf(m tea.Model) string {
 	mm := m.(Model)
+	if mm.consenting() {
+		return consentText(mm)
+	}
 	line, _ := mm.keyLine(max(mm.width, minWidth))
 	return ansi.Strip(line)
 }

@@ -8,7 +8,9 @@ command.
   start them: [the stoker](stoker.md)'s compacts and the messages of a
   stoker agent you started (`n`, `f`), each logged with its command, and
   `[hooks] alert`, which runs the command you name on each alert.
-- Every action shows its exact command before it runs.
+- Every action shows its exact command before it runs, in a box that asks
+  for its key: on a phone above the key line, wider in the middle. A tap
+  cancels it; only a typed key runs it.
 - `Enter` never runs a destructive action. That needs `x`, then a typed
   `y`. The stoker's compact and the messages of its agent are the steps that
   run without it: `n` or `f`, and the order you send with `Enter`, are your

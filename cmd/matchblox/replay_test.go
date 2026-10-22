@@ -546,10 +546,10 @@ func replayAt(t *testing.T, z replaySize) {
 		}},
 		{name: "take over?", at: 18500 * time.Millisecond, key: "enter", ok: has("Take over?")},
 		{name: "kept on", at: 20500 * time.Millisecond, key: "n", ok: func(s string) bool {
-			return strings.Contains(s, "night") && !strings.Contains(s, "Take over?") && strings.Contains(s, "RUN tmux switch-client -t %")
+			return strings.Contains(s, "night") && !strings.Contains(s, "Take over?") && strings.Contains(s, "╭─ Jump") && strings.Contains(s, "tmux switch-client -t %")
 		}},
 		{name: "back to the night", at: 21700 * time.Millisecond, key: "esc", ok: func(s string) bool {
-			return strings.Contains(s, "night") && !strings.Contains(s, "RUN tmux switch-client")
+			return strings.Contains(s, "night") && !strings.Contains(s, "╭─ Jump")
 		}},
 		{name: "the stoker compacts", at: 23 * time.Second, do: func() {
 			clk.Set(full)
@@ -579,7 +579,7 @@ func replayAt(t *testing.T, z replaySize) {
 		}},
 		// x: a session that is done goes, after a typed y.
 		{name: "kill", at: 37 * time.Second, keys: slices.Concat([]string{"/"}, strings.Split("spark", ""), []string{"enter", "x"}),
-			ok: has("RUN kill spark-docs: tmux kill-pane -t %3")},
+			ok: has("╭─ Kill spark-docs", "tmux kill-pane -t %3")},
 		// The pane and its agent are both gone: a sample between the two
 		// would list the pane without an agent.
 		{name: "killed", at: 39 * time.Second, key: "y", ok: func(s string) bool {

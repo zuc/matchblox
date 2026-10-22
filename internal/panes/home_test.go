@@ -2,6 +2,7 @@ package panes
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -97,5 +98,24 @@ func TestSizeArgv(t *testing.T) {
 	want := []string{"tmux", "set-option", "-w", "-t", "=matchblox:", "window-size", "latest"}
 	if got := SizeArgv(); !slices.Equal(got, want) {
 		t.Errorf("SizeArgv() = %q, want %q", got, want)
+	}
+}
+
+// TestHomeKeyMatchesTheApp reads what the phone sends and taps from the
+// fixture the Swift tests read too.
+func TestHomeKeyMatchesTheApp(t *testing.T) {
+	b, err := os.ReadFile("../../testdata/home/key.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fx struct{ Sequence, Label string }
+	if err := json.Unmarshal(b, &fx); err != nil {
+		t.Fatal(err)
+	}
+	if HomeKey != fx.Sequence {
+		t.Errorf("HomeKey = %q, the app sends %q", HomeKey, fx.Sequence)
+	}
+	if !strings.Contains(WayBack, fx.Label) {
+		t.Errorf("WayBack lacks the label %q the app taps", fx.Label)
 	}
 }

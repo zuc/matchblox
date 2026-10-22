@@ -144,7 +144,9 @@ type action struct {
 	connect     bool                        // it connects the host: install, update or authorize
 	pane        string                      // a jump: the pane it goes to
 	local       func(Model) (Model, string) // it runs in this console; its string is the flash
-	again       string                      // a kill of a session that works or waits: what the second y's confirm says
+	again       string                      // a kill or switch of a session that works or waits: what the second y's confirm says
+	againText   string                      // the Text the second y sends ("": killAnyway)
+	done        string                      // a switch: what the flash says when it ran
 }
 
 // recRun is an act on a recommendation: the row shows its outcome.
@@ -276,10 +278,11 @@ type Model struct {
 	sessGroup  int // what Sessions is grouped by: groupNeed .. groupNone
 	holds      []proto.Hold
 	reasons    map[string]proto.IdleReason
-	agents     []string          // the agents a new session can start on the host
-	renames    map[string]string // the names sessions take at their next rest, by pane
-	form       *form             // the open New session or Rename form; nil none
-	lastAgent  string            // the agent this console last started
+	agents     []string                         // the agents a new session can start on the host
+	renames    map[string]string                // the names sessions take at their next rest, by pane
+	form       *form                            // the open New session, Rename or Switch agent form; nil none
+	jumpAfter  struct{ act, pane, done string } // a switch sent: the pane to jump to when it runs
+	lastAgent  string                           // the agent this console last started
 	paneSort   sortBy
 	picked     map[string]bool // worktrees x removes
 	batch      *batch
@@ -518,6 +521,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.recv()
 			}
 			return m, tea.Batch(m.recv(), m.say("sent to "+name))
+		}
+		if r := proto.Result(msg); r.ActID != "" && r.ActID == m.jumpAfter.act {
+			return m.switched(r)
 		}
 		if m.tally(proto.Result(msg)) {
 			return m, m.recv()
@@ -823,6 +829,9 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 		if k == "y" && a.again != "" {
 			// It works or waits for you: one more y, said plainly.
 			a.say, a.again, a.text = a.again, "", killAnyway
+			if a.againText != "" {
+				a.text = a.againText
+			}
 			m.pending = &a
 			return m, nil
 		}
@@ -916,6 +925,10 @@ func (m Model) key(k string) (tea.Model, tea.Cmd) {
 		m.pending = m.secondary()
 	case "N", "shift+n":
 		return m.openNew()
+	case "A", "shift+a":
+		if m.tab == tabSessions {
+			return m.openSwitch()
+		}
 	case "y":
 		if m.tab == tabStoker {
 			return m.grantStep()
@@ -1003,7 +1016,29 @@ func (m Model) confirm(a action) (tea.Model, tea.Cmd) {
 	m.flash = "sent: " + a.String()
 	cmd := m.send(proto.Act{RecID: a.rec, Which: a.which, Confirm: confirm, Text: a.text})
 	m.startRec(a, "a"+strconv.Itoa(m.acts))
+	if pane, ok := strings.CutPrefix(a.rec, "switch:"); ok {
+		m.jumpAfter.act, m.jumpAfter.pane, m.jumpAfter.done = "a"+strconv.Itoa(m.acts), pane, a.done
+	}
 	return m.pairActed(a), cmd
+}
+
+// switched takes the result of a switch: one that ran jumps to its pane,
+// one that did not says why.
+func (m Model) switched(r proto.Result) (tea.Model, tea.Cmd) {
+	j := m.jumpAfter
+	m.jumpAfter.act, m.jumpAfter.pane, m.jumpAfter.done = "", "", ""
+	switch {
+	case r.Err != "":
+		m.flash = tilde(r.Err)
+		return m, m.recv()
+	case len(r.Skipped) > 0:
+		m.flash = tilde(r.Skipped[len(r.Skipped)-1])
+		return m, m.recv()
+	}
+	next, jump := m.confirm(*m.jump(j.pane))
+	nm := next.(Model)
+	nm.flash = j.done
+	return nm, tea.Batch(nm.recv(), jump)
 }
 
 func runNav(a action, run func([]string) error) ranMsg {

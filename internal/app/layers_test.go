@@ -233,8 +233,8 @@ func TestRemoveAHostNeedsAY(t *testing.T) {
 	r.sh.opt.Remove = func(h string) error { removed = h; return nil }
 	r.key(t, "down")
 	r.key(t, "x")
-	if removed != "" || !strings.Contains(r.view(), "remove ws-1") {
-		t.Fatalf("x must ask first:\n%s", r.view())
+	if removed != "" || !strings.Contains(r.view(), "╭─ Remove") || !strings.Contains(r.view(), "remove ws-1") {
+		t.Fatalf("x must ask first, in a box:\n%s", r.view())
 	}
 	r.key(t, "y")
 	if removed != "ws-1" {

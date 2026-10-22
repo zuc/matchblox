@@ -167,7 +167,11 @@ func writeSessions(w io.Writer, doc state.Doc, asJSON bool) error {
 		return writeJSON(w, rows)
 	}
 	for _, r := range rows {
-		line := fmt.Sprintf("%-4s %-16s %-8s %-6s %3.0f%%", r.Pane, r.Name, r.Target, r.Word, r.ContextPct)
+		target := r.Target
+		if r.Pane == "" {
+			target = "outside tmux"
+		}
+		line := fmt.Sprintf("%-4s %-16s %-8s %-6s %3.0f%%", r.Pane, r.Name, target, r.Word, r.ContextPct)
 		if r.Held {
 			line += "  held"
 		}

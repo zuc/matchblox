@@ -176,11 +176,14 @@ starts it. A second phone or laptop attaches to the same session.
 
 1. Tap an agent in Sessions. The key line says `tap again: <command>`.
 2. Tap it again. You are in the agent's pane.
-3. To come back, tap `◂ matchblox` at the left of the tmux status line, or
-   press `prefix m` (the tmux prefix, then m).
+3. To come back in the matchblox app, swipe in from the left edge, tap
+   `◂ matchblox` at the left of the tmux status line, or press ⌘M on a
+   hardware keyboard. All three work whatever your tmux prefix is, and
+   none needs the tmux mouse.
 
-The tap on `◂ matchblox` needs the tmux mouse on. Press `m` in the preview
-of "Add the way back" to turn it on with it, or add `set -g mouse on` to your
+In another SSH app, tap `◂ matchblox`, or press `prefix m` (the tmux prefix,
+then m). There the tap needs the tmux mouse on: press `m` in the preview of
+"Add the way back" to turn it on with it, or add `set -g mouse on` to your
 tmux config. Without it, use `prefix m`.
 
 The console then selects the next agent that waits.
@@ -197,6 +200,15 @@ peek moves to the next agent that waits. A swipe left or right, or a tap
 on `← prev` or `next →`, moves it along the list; `Esc` or a tap outside
 the peek closes it. See [the answer
 peek](console.md#the-answer-peek).
+
+## Switch an agent from the phone
+
+The selected agent's keys are under it: on a one-column phone at the foot
+of its opened row, held upright with a small font at the foot of the
+drawer. Tap `A switch` to open Switch agent. Tap the agent you want, then
+`Enter`; the plan rises in a box above the key line, and a typed `y` runs it (a tap is never consent). The new agent
+starts in the same pane with the same name, and the console jumps to it.
+See [`A` in Keys](keys.md).
 
 ## The phone layout
 

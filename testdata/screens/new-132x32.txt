@@ -18,7 +18,7 @@
  ○ Clear spark-docs (%3)           ╰─ ⏎ start ─ tab next ─ esc ─────────────────────────────────╯· Max · pid 1400 · 1 process ·
  ○ Clear kindle-web (%5)                                                      │ started 3h20m ago
  ○ Clear cinder-ci (%6)                                                       │
- ○ Clear flint-auth (%2)                                                      │ a answer   ⏎ open it
+ ○ Clear flint-auth (%2)                                                      │ a answer   ⏎ open it   A switch agent
  ○ Clear ember-billing (%8)                                                   │
  ○ Clear wick-mobile (%7)                                                     │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -29,4 +29,4 @@
  ❋ Plus   5h   ▰▰▰▱▱▱▱▱ 40%  · 23:59                                          │ runs 5 claude · 1 codex · 1 opencode
           wk   ▰▱▱▱▱▱▱▱ 12%  · Tue 09:00 · lasts the week                     │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- ↑↓ move  ⏎ open  a answer  x kill  r rename  z park  N new  p ships  f stoker  / find  q quit                       sampled 0s ago
+ ↑↓ move  ⏎ open  a answer  x kill  r rename  A switch  z park  N new  p ships  f stoker  / find  q quit             sampled 0s ago

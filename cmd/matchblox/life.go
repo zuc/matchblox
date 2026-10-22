@@ -7,9 +7,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/blox-eng/matchblox/internal/proto"
+	"github.com/blox-eng/matchblox/internal/sample"
 	"github.com/blox-eng/matchblox/internal/service"
 	"github.com/blox-eng/matchblox/internal/state"
 )
@@ -49,6 +51,46 @@ func lifeAct(doc state.Doc, cmd string, words []string, anyway bool, from string
 	}
 	a.RecID += sess.Pane
 	return a, nil
+}
+
+// switchOpts are matchblox switch's flags: agent is "" and handoff nil
+// when the flag was not given.
+type switchOpts struct {
+	agent   string
+	handoff *string
+	anyway  bool
+}
+
+// switchAct is the act of matchblox switch <who> --agent <name>: the
+// session's pane runs another agent, started from the handoff line (the
+// default one unless --handoff gives another, or none when it is empty).
+// The service holds every guard.
+func switchAct(doc state.Doc, words []string, o switchOpts, from string) (proto.Act, error) {
+	const usage = "matchblox switch <who> --agent <name>"
+	switch {
+	case len(words) == 0:
+		return proto.Act{}, errors.New("switch needs a session: " + usage)
+	case o.agent == "":
+		return proto.Act{}, errors.New("switch needs an agent: --agent claude, codex, opencode or cursor-agent")
+	case len(words) > 1:
+		return proto.Act{}, errors.New("switch takes one session: " + usage)
+	}
+	sess, err := resolve(doc, words[0])
+	if err != nil {
+		return proto.Act{}, err
+	}
+	if sess.Pane == "" {
+		return proto.Act{}, fmt.Errorf("%s is outside tmux: nothing to switch", words[0])
+	}
+	sw := proto.SwitchAgent{Agent: o.agent, Handoff: proto.DefaultHandoff, Anyway: o.anyway}
+	if o.handoff != nil {
+		sw.Handoff = *o.handoff
+	}
+	b, err := json.Marshal(sw)
+	if err != nil {
+		return proto.Act{}, err
+	}
+	return proto.Act{RecID: "switch:" + sess.Pane, Confirm: "y", Text: string(b), From: from}, nil
 }
 
 // newOpts are matchblox new's flags.
@@ -110,6 +152,35 @@ func cliNew(words []string, o newOpts, w io.Writer, path string) error {
 	}
 	if err := reportResult(w, res); err != nil {
 		return fmt.Errorf("new: refused: %w", err)
+	}
+	return nil
+}
+
+// cliSwitch switches the session's agent and, when jump is not nil, takes
+// the tmux client to its pane: only after the switch ran.
+func cliSwitch(words []string, o switchOpts, w io.Writer, path string, jump func(argv []string) error) error {
+	doc, err := readDoc(path, staleAfter)
+	if err != nil {
+		return err
+	}
+	a, err := switchAct(doc, words, o, os.Getenv("TMUX_PANE"))
+	if err != nil {
+		return err
+	}
+	res, err := doAct(path, a)
+	if err != nil || res.Err != "" || len(res.Ran) == 0 {
+		return handOutcome(w, "switch", words[0], res, err)
+	}
+	if _, err := fmt.Fprintf(w, "switched %s to %s\n", words[0], o.agent); err != nil {
+		return err
+	}
+	if jump == nil {
+		return nil
+	}
+	server, bare := sample.SplitPane(strings.TrimPrefix(a.RecID, "switch:"))
+	if err := jump(slices.Concat(sample.TmuxOn(server), []string{"switch-client", "-t", bare})); err != nil {
+		_, err = fmt.Fprintf(w, "switched, but not jumped: %v\n", err)
+		return err
 	}
 	return nil
 }

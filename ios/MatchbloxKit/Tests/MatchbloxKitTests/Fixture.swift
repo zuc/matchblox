@@ -33,17 +33,7 @@ struct Fixture: Codable {
     }
 
     static func load() throws -> Fixture {
-        try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: file("v1")))
-    }
-
-    fileprivate static func file(_ name: String) -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("testdata/pair/\(name).json")
+        try JSONDecoder().decode(Fixture.self, from: testdata("pair/v1.json"))
     }
 }
 
@@ -53,20 +43,25 @@ struct FixtureV2: Codable {
     let url: String
 
     static func load() throws -> FixtureV2 {
-        try JSONDecoder().decode(FixtureV2.self, from: Data(contentsOf: Fixture.file("v2")))
+        try JSONDecoder().decode(FixtureV2.self, from: testdata("pair/v2.json"))
     }
+}
+
+/// A file in the repository's testdata/, which the Go tests read too.
+func testdata(_ path: String) throws -> Data {
+    let root = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    return try Data(contentsOf: root.appendingPathComponent("testdata").appendingPathComponent(path))
 }
 
 /// Loader for the shared testdata/push fixtures, which Go tests read too.
 enum PushFixture {
     static func data(_ name: String) throws -> Data {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        return try Data(contentsOf: root.appendingPathComponent("testdata/push/\(name).json"))
+        try testdata("push/\(name).json")
     }
 
     static func load<T: Decodable>(_ name: String, as type: T.Type = T.self) throws -> T {

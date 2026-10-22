@@ -5,7 +5,7 @@ import (
 )
 
 // tap is a click or a finger on a phone. A tap on a tab opens it, on a key
-// of the key line presses it, on `● N wait for you` selects the first
+// of the key line, of an opened row or under the detail presses it, on `● N wait for you` selects the first
 // session that waits, on the dock's `machine ›` switches the panel. A tap
 // on a row selects it and shows the step a second tap runs: an answer for
 // a session that waits, else the row's Enter. The second tap runs it when
@@ -84,6 +84,12 @@ func (m Model) tap(ms tea.Mouse) (tea.Model, tea.Cmd) {
 			return m.openStoker().seeStoker()
 		}
 		return m, nil
+	}
+	if ms.Y == sc.actKeysAt {
+		if s, ok := spanAt(sc.actKeys, ms.X); ok {
+			m.armed = ""
+			return m.keyed(s.press)
+		}
 	}
 	i := ms.Y - sc.bodyTop
 	if i < 0 || i >= len(sc.rows) || ms.X >= sc.listW {

@@ -362,6 +362,12 @@ func (s *Service) publish(snap sample.Snapshot, rec func(state.Doc)) {
 		present := make(map[string]bool, len(snap.Sessions))
 		for _, x := range snap.Sessions {
 			present[x.SessionID] = true
+			if x.Pane == "" {
+				continue
+			}
+			if _, err := s.Holds.Rebind(x.Pane, x.SessionID); err != nil {
+				s.cur.Errors = append(s.cur.Errors, "holds: "+err.Error())
+			}
 		}
 		if err := s.Holds.Prune(present, s.now()); err != nil {
 			s.cur.Errors = append(s.cur.Errors, "holds: "+err.Error())

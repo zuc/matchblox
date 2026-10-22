@@ -782,12 +782,19 @@ func (s *Sampler) agentName(pid int, p procfs.Proc) string {
 
 type agentRef struct{ comm, name string }
 
+// WindowNamed: p's window has a name of its own, not the one tmux gives it
+// after the command it runs.
+func WindowNamed(p Pane, agent string) bool {
+	w := p.Window
+	return w != "" && w != p.Command && w != filepath.Base(p.Command) && w != agent
+}
+
 // tmuxName names an agent that keeps no name of its own as its tmux window,
 // which a rename sets; a window tmux named after the command it runs gives
 // way to the session's name, and no pane to the agent's.
 func tmuxName(p Pane, agent string) string {
-	if w := p.Window; w != "" && w != p.Command && w != filepath.Base(p.Command) && w != agent {
-		return w
+	if WindowNamed(p, agent) {
+		return p.Window
 	}
 	if session, _, ok := strings.Cut(p.Target, ":"); ok && session != "" {
 		return session

@@ -201,3 +201,18 @@ type NewSession struct {
 	Agent  string `json:"agent"`
 	First  string `json:"first,omitempty"`
 }
+
+// SwitchAgent is the Text of a "switch:<pane>" act: start Agent in the
+// pane in place of the one there, with Handoff as its first message.
+// Clients fill Handoff, DefaultHandoff unless the builder changed it; empty
+// is no first message. Anyway is the second confirm of a session that
+// works or waits.
+type SwitchAgent struct {
+	Agent   string `json:"agent"`
+	Handoff string `json:"handoff,omitempty"`
+	Anyway  bool   `json:"anyway,omitempty"`
+}
+
+// DefaultHandoff is the first message a switched-in agent gets: it reads
+// the place, not another product's transcript.
+const DefaultHandoff = "Read the working tree and any local notes. Summarise progress so far, then continue the work from here."

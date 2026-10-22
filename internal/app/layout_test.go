@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -143,13 +144,14 @@ func TestAPhoneRowOpensInPlace(t *testing.T) {
 	if !strings.Contains(out[at+1], "“Claude needs your permission to use Bash”") {
 		t.Fatalf("no last words under the row:\n%s", strings.Join(out, "\n"))
 	}
-	if !strings.Contains(out[at+2], "plan 75%") || !strings.Contains(out[at+2], "a answer  ⏎ open") {
-		t.Fatalf("no plan and keys: %q", out[at+2])
+	// The plan and the keys share no line at 50 columns: each gets its own.
+	if !strings.Contains(out[at+2], "plan 75%") || !strings.Contains(out[at+2], "! compact") || !strings.Contains(out[at+3], "a answer  A switch  ⏎ open") {
+		t.Fatalf("no plan and keys:\n%s", strings.Join(out[at:at+4], "\n"))
 	}
-	if !strings.HasPrefix(out[at-1], "────") || !strings.HasPrefix(out[at+3], "────") {
+	if !strings.HasPrefix(out[at-1], "────") || !strings.HasPrefix(out[at+4], "────") {
 		t.Fatalf("the opened block is not between hairlines:\n%s", strings.Join(out, "\n"))
 	}
-	if sessLine(t, m, "app-review") != at+4 || strings.Contains(out[at+5], "“") {
+	if sessLine(t, m, "app-review") != at+5 || strings.Contains(out[at+6], "“") {
 		t.Fatalf("the rows that are not selected open too:\n%s", strings.Join(out, "\n"))
 	}
 	if lineOf(t, m, "WAITS FOR YOU · 2") > lineOf(t, m, "QUIET · 1") {
@@ -158,7 +160,7 @@ func TestAPhoneRowOpensInPlace(t *testing.T) {
 	// Selected, app-review (done) offers an answer.
 	next, _ := key(m, "down")
 	out = strings.Split(ansi.Strip(next.(Model).render()), "\n")
-	if at := sessLine(t, next, "app-review"); !strings.Contains(out[at+1], "a answer  ⏎ open") {
+	if at := sessLine(t, next, "app-review"); !strings.Contains(out[at+1], "a answer  A switch  ⏎ open") {
 		t.Fatalf("no a for a session that waits for an answer:\n%s", strings.Join(out, "\n"))
 	}
 	for tab := range tabNames {
@@ -404,14 +406,19 @@ func TestTheKeyLineIsAtTheBottom(t *testing.T) {
 			t.Fatalf("width %d: keys under the tabs", w)
 		}
 		next, _ := key(selectPane(t, m, "%3"), "enter")
-		if !strings.Contains(last(next), "RUN tmux switch-client -t %3") {
-			t.Fatalf("width %d: the confirm is not at the bottom: %q", w, last(next))
+		// The confirm is a box: on a phone its foot sits on the key line's
+		// hairline, under the thumb; wider, it is in the middle.
+		out := strings.Split(ansi.Strip(next.(Model).render()), "\n")
+		foot := slices.IndexFunc(out, func(l string) bool { return strings.Contains(l, "╰─ ⏎ run") })
+		phone := next.(Model).layoutAt(w) == Narrow || next.(Model).upright()
+		if !strings.Contains(actionLine(next), "tmux switch-client -t %3") || foot < 0 || phone != (foot == len(out)-3) {
+			t.Fatalf("width %d: the confirm box is not where it belongs:\n%s", w, strings.Join(out, "\n"))
 		}
 		next, _ = key(next, "esc")
 		next = selectPane(t, next, "%2")
 		next, _ = key(next, "a")
 		next = typeText(next, "yes")
-		out := strings.Split(ansi.Strip(next.(Model).render()), "\n")
+		out = strings.Split(ansi.Strip(next.(Model).render()), "\n")
 		if w < 60 && (!strings.Contains(out[len(out)-3], "⏎ send") || !strings.Contains(out[len(out)-4], "› yes▏")) {
 			t.Fatalf("width %d: the peek does not sit on the key line:\n%s", w, strings.Join(out, "\n"))
 		}

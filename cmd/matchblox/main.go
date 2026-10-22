@@ -181,6 +181,25 @@ func run(args []string) error {
 			return err
 		}
 		return cliLife(cmd, words, *o.anyway, os.Stdout, transport.SocketPath())
+	case "switch":
+		words, err := positionals(fl, args)
+		if err != nil {
+			return err
+		}
+		so := switchOpts{anyway: *o.anyway}
+		fl.Visit(func(f *flag.Flag) {
+			switch f.Name {
+			case "agent":
+				so.agent = *o.agent
+			case "handoff":
+				so.handoff = o.handoff
+			}
+		})
+		var jump func([]string) error
+		if os.Getenv("TMUX") != "" {
+			jump = func(argv []string) error { return exec.Command(argv[0], argv[1:]...).Run() } //nolint:gosec // tmux switch-client, built by cliSwitch
+		}
+		return cliSwitch(words, so, os.Stdout, transport.SocketPath(), jump)
 	case "new":
 		words, err := positionals(fl, args)
 		if err != nil {
@@ -233,7 +252,9 @@ func run(args []string) error {
 			return err
 		}
 		if os.Getenv(panes.HomeEnv) == "1" {
-			_ = exec.Command(panes.SizeArgv()[0], panes.SizeArgv()[1:]...).Run()
+			for _, argv := range [][]string{panes.SizeArgv(), panes.HomeKeyArgv()} {
+				_ = exec.Command("tmux", argv[1:]...).Run()
+			}
 		}
 	}
 
@@ -256,7 +277,7 @@ func run(args []string) error {
 
 // commands are the commands a builder types. hook, authorize and gate run
 // from a hook, an ssh forced command and a connect.
-var commands = []string{"connect", "serve", "sessions", "ships", "status", "setup", "pair", "devices", "usage", "version", "send", "compact", "hold", "release", "stoker", "peek", "new", "rename", "kill"}
+var commands = []string{"connect", "serve", "sessions", "ships", "status", "setup", "pair", "devices", "usage", "version", "send", "compact", "hold", "release", "stoker", "peek", "new", "rename", "kill", "switch"}
 
 type flags struct {
 	cfgPath, root         *string
@@ -271,7 +292,7 @@ type flags struct {
 	list                  *bool
 	anyway                *bool
 	where, agent, branch  *string
-	name                  *string
+	name, handoff         *string
 }
 
 // usageText heads --help: every command, one line each, then the flags.
@@ -298,6 +319,7 @@ Commands:
   matchblox new ["<first message>"]  start an agent in a tmux session of its own (--where, --agent, --branch, --name)
   matchblox rename <who> <name>    name a session, its tmux session and its agent alike
   matchblox kill <who>             end a session: its agent and its pane (--anyway while it works)
+  matchblox switch <who> --agent <name>  run another agent in a session's pane (--handoff, --anyway while it works)
   matchblox stoker plan|step       the stoker agent's plan and steps, for its card
   matchblox stoker when …          a trigger matchblox fires itself (--ship n --stage s, or --rest who)
   matchblox stoker quit            end the stoker agent and its own tmux session
@@ -331,9 +353,10 @@ func newFlags() (*flag.FlagSet, flags) {
 		rest:     fl.String("rest", "", "stoker when: the session whose turn's end fires the trigger"),
 		drop:     fl.String("drop", "", "stoker when: drop the trigger with this id"),
 		list:     fl.Bool("list", false, "stoker when: print the run's triggers"),
-		anyway:   fl.Bool("anyway", false, "kill: kill a session that works or waits for you"),
+		anyway:   fl.Bool("anyway", false, "kill, switch: act on a session that works or waits for you"),
 		where:    fl.String("where", "", "new: the directory, or the repository of --branch (default: here)"),
-		agent:    fl.String("agent", "claude", "new: the agent to start: claude, codex, opencode or cursor-agent"),
+		agent:    fl.String("agent", "claude", "new, switch: the agent to start: claude, codex, opencode or cursor-agent"),
+		handoff:  fl.String("handoff", "", "switch: the line the new agent starts from (default: read the tree and notes, summarise, continue; empty: none)"),
 		branch:   fl.String("branch", "", "new: first add a worktree for this new branch, beside the repository"),
 		name:     fl.String("name", "", "new: the name of the session, its tmux session and its agent (default: the directory's)"),
 		noMotion: fl.Bool("no-motion", os.Getenv("NO_MOTION") == "1", "every motion is an instant change (also NO_MOTION=1)"),

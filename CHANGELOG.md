@@ -32,6 +32,43 @@ All notable changes to matchblox are in this file. The format follows
   `buzz on` or `buzz off`, and `island yes` or `island no`.
 - **`[push] relay` names the relay.** It is `https://matchblox.sh`.
 
+## [0.16.0] - 2026-10-22
+
+### Added
+
+- **The app takes you back to matchblox in one move.** From any pane,
+  swipe in from the left edge, tap `◂ matchblox` in the tmux status line,
+  or press ⌘M on a hardware keyboard. It no longer takes the tmux prefix
+  and `m` on the phone keyboard. The console gives tmux a key of its own
+  for it, which no keyboard types, so it works whatever your prefix is
+  and takes no key from the apps in your panes. The tap no longer needs
+  the tmux mouse in the app.
+  ([#121](https://github.com/blox-eng/matchblox/issues/121))
+
+## [0.15.0] - 2026-10-22
+
+### Added
+
+- **`matchblox switch <who> --agent <name>` runs another agent in a session's
+  pane:** same name, directory, park and ship, with a handoff line to start
+  from. Switch it from the CLI, or `A` in Sessions.
+- **`A switch` sits under the selected session, and a tap presses it.** A
+  phone's opened row and the detail beside the list carry the session's
+  keys; a tap on one presses it, so the iPhone app switches an agent with
+  no keyboard. On a narrow phone the plan and the keys get a line each, so
+  `! compact` is no longer cut.
+- **Sessions says `outside tmux` for an agent with no pane.** The row and
+  `matchblox sessions` name the place, instead of leaving it blank.
+
+### Changed
+
+- **A step asks for consent in a box, not on the bottom line** (#158).
+  Kill, switch, merge, remove, connect, a jump and the stoker's take-over
+  show what runs in a box over the dimmed screen: its title says what it
+  does, its lines the exact commands, its foot the key. On a phone it rises
+  above the key line; wider, it sits in the middle. A door's long diff keeps
+  its confirm on the key line.
+
 ## [0.14.0] - 2026-10-21
 
 ### Added
@@ -472,7 +509,9 @@ the host, over SSH and from a phone.
   version, and `matchblox version` names it.
 - **Docs** at [docs.matchblox.com](https://docs.matchblox.com).
 
-[Unreleased]: https://github.com/blox-eng/matchblox/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/blox-eng/matchblox/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/blox-eng/matchblox/compare/v0.15.0...v0.16.0
+[0.15.0]: https://github.com/blox-eng/matchblox/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/blox-eng/matchblox/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/blox-eng/matchblox/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/blox-eng/matchblox/compare/v0.11.0...v0.12.0

@@ -7,7 +7,8 @@
    “I rewrote the quick start and the
    install page.”
    #4540 ●━●━●━●━●  live
-   ▰▰▰▰▰ plan 100%  ▲ cle… a answer  ⏎ open
+   ▰▰▰▰▰ plan 100%  ▲ clear
+                 a answer  A switch  ⏎ open
 ────────────────────────────────────────────
  ╿ ember-billing         done      4m   32%
  ╿ flint-auth            asks      2m   41%
@@ -26,6 +27,5 @@
  ○ Clear cinder-ci (%6)
  ○ Clear flint-auth (%2)
  ○ Clear ember-billing (%8)
- ○ Clear wick-mobile (%7)
 ────────────────────────────────────────────
  ⏎ open  a answer  x kill  r rename  N new

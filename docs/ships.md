@@ -67,7 +67,7 @@ To count only the workflows that deploy a repository, name them in the
 | Key | What it does |
 |---|---|
 | `Enter` | Selects the session that drives the ship, in Sessions. |
-| `x` | Merges a ship that waits for your merge: the key line shows `RUN gh pr merge <n> --squash --match-head-commit <sha>` (the repository's merge method, pinned to the commit that was read green), and a typed `y` runs it. It is offered only on a read from the last two minutes. |
+| `x` | Merges a ship that waits for your merge: a box shows `gh pr merge <n> --squash --match-head-commit <sha>` (the repository's merge method, pinned to the commit that was read green), and a typed `y` runs it. It is offered only on a read from the last two minutes. |
 | `a` | Opens [the answer peek](console.md#the-answer-peek) on the session of a stuck ship, to tell it what to do. |
 
 On a phone the selected ship adds who drives it and its keys. Wider, the

@@ -45,7 +45,7 @@ func TestShipKeys(t *testing.T) {
 
 	next, _ = key(m, "down") // #4552 waits for your merge
 	next, _ = key(next, "x")
-	if out := ansi.Strip(next.(Model).render()); !strings.Contains(out, "RUN gh pr merge 4552 --squash -R hearth/ember-billing") {
+	if out := actionLine(next); !strings.Contains(out, "gh pr merge 4552 --squash -R hearth/ember-billing") {
 		t.Fatalf("x does not show the merge:\n%s", out)
 	}
 	if _, cmd := key(next, "enter"); cmd != nil || len(f.acts()) != 0 {

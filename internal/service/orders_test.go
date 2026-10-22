@@ -23,6 +23,9 @@ import (
 func orderTest(t *testing.T) (*Service, *[][]string) {
 	t.Helper()
 	s, ran := handsTest(t)
+	// night0 is on the real clock: a night that ends at 07:00 ends mid-test
+	// when CI runs at 08:00. Its morning is half a day off instead.
+	s.NightEnds = night0.Add(12 * time.Hour).Format("15:04")
 	if err := s.Stoker.Set(stoker.Mode{}); err != nil {
 		t.Fatal(err)
 	}

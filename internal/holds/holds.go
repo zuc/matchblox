@@ -22,12 +22,14 @@ const (
 const GoneFor = 24 * time.Hour
 
 // Hold follows the session, not the pane: a new agent in the pane is free.
+// An explicit switch keeps it on the pane instead (Rebind).
 type Hold struct {
 	SessionID string    `json:"session_id"`
 	Pane      string    `json:"pane"`
 	Name      string    `json:"name"`
 	By        string    `json:"by"` // you | stoker
 	Why       string    `json:"why,omitempty"`
+	Rebind    bool      `json:"rebind,omitempty"` // switched: the pane's until a new session id shows there
 	At        time.Time `json:"at"`
 }
 
@@ -117,6 +119,51 @@ func (s *Store) Of(sessionID string) (Hold, bool) {
 	defer s.mu.Unlock()
 	h, ok := s.by[sessionID]
 	return h, ok
+}
+
+// Pending is the Rebind hold on the pane.
+func (s *Store) Pending(pane string) (Hold, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.pending(pane)
+}
+
+func (s *Store) pending(pane string) (Hold, bool) {
+	for _, h := range s.by {
+		if h.Rebind && h.Pane == pane {
+			return h, true
+		}
+	}
+	return Hold{}, false
+}
+
+// Rebind moves the pane's Rebind hold to the session now in it. It reports
+// whether it moved.
+func (s *Store) Rebind(pane, sessionID string) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	h, ok := s.pending(pane)
+	if !ok || sessionID == "" || sessionID == h.SessionID {
+		return false, nil
+	}
+	old := h.SessionID
+	wasSeen, hadSeen := s.seen[old]
+	delete(s.by, old)
+	delete(s.seen, old)
+	h.SessionID, h.Rebind = sessionID, false
+	s.by[sessionID] = h
+	s.seen[sessionID] = time.Now()
+	if err := s.save(); err != nil {
+		delete(s.by, sessionID)
+		delete(s.seen, sessionID)
+		h.SessionID, h.Rebind = old, true
+		s.by[old] = h
+		if hadSeen {
+			s.seen[old] = wasSeen
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // List is every hold, oldest first.

@@ -14,6 +14,7 @@ the keys of the open tab, and a tap on one presses it.
 | `x` | Shows the other action of the row: the second action of a recommendation, close a setup step or kill the session (Sessions), kill a detached busy loop (Machine), remove the marked worktrees (Git), merge a ship that waits for your merge (Ships). Kill shows its commands, `tmux kill-pane -t <pane>`, then `kill -TERM <pid>` for an agent still running, and runs them on a typed `y`. A session that works or waits for you asks for a second `y`. Its worktree and its transcript stay. |
 | `N` | Opens **New session** (Sessions, Git): where it starts (a path, or `←` `→` through the Git tab's repositories and worktrees), a branch for a new worktree beside the repository (blank: none), its name, the agent (`←` `→`, from the installed Claude Code, Codex and OpenCode) and a first message (blank: it waits for you). `Tab` goes to the next line, `⏎` starts it in a tmux session of its own, `Esc` sends nothing. The row shows in Sessions within seconds. |
 | `r` | Renames the session (Sessions): its tmux window, its tmux session when it is that session's one window, and Claude Code's own name (`/rename`), all alike. A Claude Code session that works takes its new name when it rests. On Git, `r` scans the git checkouts again. |
+| `A` | Switches the agent of the session (Sessions): another installed agent (`←` `→`) starts in its pane and directory with a handoff line you may edit or clear. The plan shows, `y` runs it, and a session that works or waits asks for a second `y`. The console jumps to the pane after. |
 | `a` | Opens the peek on the selected agent: what it said, and your answer to an agent that waits or a message to any other (Claude Code queues a message typed while it works). The key line says `a answer` or `a message`. On Ships, opens it on the session of a stuck ship. |
 | `1-7` | Opens a tab: Sessions, Ships, Machine, Git, History, Panes, Stoker. |
 | `p` | Opens Ships. |
@@ -63,15 +64,15 @@ The key line shows `RUN` and the exact command.
 | `m` | Turns the choice of a setup step on or off: the tmux mouse, in "Add the way back". |
 | `Esc` | Cancels. Any other key cancels too. |
 
-## New session and Rename
+## New session, Rename and Switch agent
 
 A tap on a line puts the cursor there, and a tap on an agent picks it.
 
 | Key | What it does |
 |---|---|
 | `Tab` or `↓` | Goes to the next line. `Shift+Tab` or `↑` goes back. |
-| `←` or `→` | On where, steps through the Git tab's repositories and worktrees. On agent, picks the agent before or after. |
-| `Enter` | Starts the session, or renames it. A refusal stays in the form, with why. |
+| `←` or `→` | On where, steps through the Git tab's repositories and worktrees. On agent, picks the agent before or after; Switch agent leaves out the one the session runs. |
+| `Enter` | Starts the session, renames it, or shows the switch's plan. A refusal stays in the form, with why. |
 | `Esc` | Closes the form. Nothing is sent. |
 
 ## The answer peek

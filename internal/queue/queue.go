@@ -72,17 +72,22 @@ type Queue struct {
 	// Reply, and the turn of the last Stop, of each session.
 	replies map[string]hooks.Event
 	stopped map[string]string
+	forgot  map[string]time.Time // session id -> when its pane was forgotten
 	items   []Item
 }
 
 func New() *Queue {
 	return &Queue{hooked: map[string]hooks.Event{}, waiting: map[string]Item{}, seen: map[string]time.Time{}, asks: map[string]hookAsk{},
-		replies: map[string]hooks.Event{}, stopped: map[string]string{}}
+		replies: map[string]hooks.Event{}, stopped: map[string]string{},
+		forgot: map[string]time.Time{}}
 }
 
 // Apply takes one hook event. Call Merge after it to update Items.
 func (q *Queue) Apply(ev hooks.Event) {
 	if ev.SessionID == "" {
+		return
+	}
+	if _, gone := q.forgot[ev.SessionID]; gone {
 		return
 	}
 	if ev.Name == hooks.Reply {
@@ -186,6 +191,33 @@ func (q *Queue) reply(id string) {
 	delete(q.replies, id)
 }
 
+// HookedIn is the ids of the hooked sessions whose last event names pane.
+func (q *Queue) HookedIn(pane string) []string {
+	var ids []string
+	for id, ev := range q.hooked {
+		if ev.Pane == pane {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// Forget drops the hooked sessions ids, and the events they send from now
+// on: a switch's old agent is gone from its pane, and its late hooks must
+// not speak for the new one. The ids are taken (HookedIn) before the
+// switch, so a new agent that hooks in at once is not forgotten with them.
+func (q *Queue) Forget(ids []string, now time.Time) {
+	for _, id := range ids {
+		delete(q.hooked, id)
+		delete(q.waiting, id)
+		delete(q.seen, id)
+		delete(q.asks, id)
+		delete(q.replies, id)
+		delete(q.stopped, id)
+		q.forgot[id] = now
+	}
+}
+
 // Pane is the pane of a hooked session, "" when none is known.
 func (q *Queue) Pane(id string) string {
 	return q.hooked[id].Pane
@@ -259,6 +291,11 @@ func (q *Queue) Merge(sessions []sample.Session, now time.Time) {
 			delete(q.asks, id)
 			delete(q.replies, id)
 			delete(q.stopped, id)
+		}
+	}
+	for id, at := range q.forgot {
+		if now.Sub(at) > UnseenGrace {
+			delete(q.forgot, id)
 		}
 	}
 	for id, r := range q.replies {

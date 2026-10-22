@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -15,6 +16,27 @@ func TestCheckName(t *testing.T) {
 		if CheckName(bad) == nil {
 			t.Errorf("%q passes", bad)
 		}
+	}
+}
+
+func TestCheckFirstNamesWhatItRefuses(t *testing.T) {
+	for _, ok := range []string{DefaultHandoff, "fix it - then test"} {
+		if err := CheckFirst(ok, "the handoff"); err != nil {
+			t.Errorf("%q: %v", ok, err)
+		}
+	}
+	for text, want := range map[string]string{
+		"":                       "the handoff is empty",
+		"--yolo":                 "the handoff does not start with -",
+		"a\nb":                   "the handoff must be one line, without control keys",
+		strings.Repeat("a", 501): "the handoff is longer than 500 characters",
+	} {
+		if err := CheckFirst(text, "the handoff"); err == nil || err.Error() != want {
+			t.Errorf("%q: %v", text, err)
+		}
+	}
+	if err := CheckFirst("-p", "the first message"); !errors.Is(err, ErrDash) {
+		t.Errorf("a dash: %v", err)
 	}
 }
 

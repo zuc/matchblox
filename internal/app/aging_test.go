@@ -82,7 +82,7 @@ func TestXKillsASession(t *testing.T) {
 	var next tea.Model = m
 	next, _ = key(next, "1")
 	next, _ = key(next, "x") // charlie: it waits
-	if line := actionLine(next); !strings.Contains(line, "RUN kill charlie: tmux kill-pane -t %charlie") {
+	if line := actionLine(next); !strings.Contains(line, "Kill charlie: tmux kill-pane -t %charlie") {
 		t.Fatalf("x on charlie: %q", line)
 	}
 	next, cmd := key(next, "y")
@@ -105,7 +105,7 @@ func TestXKillsASession(t *testing.T) {
 		t.Fatalf("the keys of a session lack x: %q", actionLine(next))
 	}
 	next, _ = key(next, "x")
-	if line := actionLine(next); !strings.Contains(line, "RUN kill echo: tmux kill-pane -t %echo, then kill -TERM 5") {
+	if line := actionLine(next); !strings.Contains(line, "Kill echo: tmux kill-pane -t %echo then kill -TERM 5") {
 		t.Fatalf("x on echo: %q", line)
 	}
 	_, cmd = key(next, "y")

@@ -10,15 +10,15 @@
  ╿ wick-mobile              done       0s    6%  ▲ clear                      │
  WORKING · 1                                                                  │ context  ▰▰▰▰▰▰▰▰▰▱ 88%
  ✦ hearth-api               busy            79%  ▰▰▰▱▱ 60%    #4551 ●━◉┄○┄○┄○ │ plan     ▰▰▰▰▰▰▰▰▰▰ 100%  docs for the 1.0 release
-                                                                              │ ship     #4540 ●━●━●━●━●  live
- 1 without an agent: shell:1.1 zsh                                            │          The 1.0 docs
-                                                                              │          https://github.com/hearth/spark-docs/pull/…
- RECOMMENDATIONS · 7 · h hides                                                │ why      clear: idle 9m (clear after 0s)
- ▲ The week runs short: compact spark-docs                                    │ sonnet · 176k / 200k tokens · +0k in 30 min · ✻
- ○ Clear spark-docs (%3)                                                      │ team@example.com · Max · pid 1400 · 1 process ·
+                                            ╭─ Kill spark-docs ────────────────────────╮ #4540 ●━●━●━●━●  live
+ 1 without an agent: shell:1.1 zsh          │                                          │ The 1.0 docs
+                                            │   tmux kill-pane -t %3                   │ https://github.com/hearth/spark-docs/pull/…
+ RECOMMENDATIONS · 7 · h hides              │   then kill -TERM 1400                   │ clear: idle 9m (clear after 0s)
+ ▲ The week runs short: compact spark-docs  │                                          │ 176k / 200k tokens · +0k in 30 min · ✻
+ ○ Clear spark-docs (%3)                    ╰─ y run ─ any other key cancels ──────────╯mple.com · Max · pid 1400 · 1 process ·
  ○ Clear kindle-web (%5)                                                      │ started 3h20m ago
  ○ Clear cinder-ci (%6)                                                       │
- ○ Clear flint-auth (%2)                                                      │ a answer   ⏎ open it
+ ○ Clear flint-auth (%2)                                                      │ a answer   ⏎ open it   A switch agent
  ○ Clear ember-billing (%8)                                                   │
  ○ Clear wick-mobile (%7)                                                     │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -29,4 +29,4 @@
  ❋ Plus   5h   ▰▰▰▱▱▱▱▱ 40%  · 23:59                                          │ runs 5 claude · 1 codex · 1 opencode
           wk   ▰▱▱▱▱▱▱▱ 12%  · Tue 09:00 · lasts the week                     │
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- RUN kill spark-docs: tmux kill-pane -t %3, then kill -TERM 1400   y run  any other key cancels
+

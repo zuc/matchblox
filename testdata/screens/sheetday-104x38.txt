@@ -20,7 +20,7 @@
  ○ Clear cinder-ci (%│ gos ✓ merges  ○ releases  ○ deploys  ○ kills  off asks you │ss · started 3h20m
  ○ Clear flint-auth (│ ways merge-order  priority  release-train  triage          │
  ○ Clear ember-billin╰─ ⏎ send ─ tab chips ─ esc ─────────────────────────────────╯
- ○ Clear wick-mobile (%7)                                      │ a answer   ⏎ open it
+ ○ Clear wick-mobile (%7)                                      │ a answer   ⏎ open it   A switch agent
                                                                │
                                                                │
                                                                │

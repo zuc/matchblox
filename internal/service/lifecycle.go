@@ -175,7 +175,7 @@ func (s *Service) kill(ctx context.Context, pane string, a proto.Act) proto.Resu
 		if word != "" {
 			return proto.Result{Err: x.Name + " " + word + ": the stoker kills only a session at rest"}
 		}
-		if h, held := s.heldOf(x.SessionID); held && h.By == holds.ByYou {
+		if h, held := s.heldIn(pane, x); held && h.By == holds.ByYou {
 			return proto.Result{Err: "parked by you: the stoker leaves it alone"}
 		}
 		if !s.killGo(a.From, pane) {
@@ -253,6 +253,162 @@ func (s *Service) askKill(from, pane string, x sample.Session) {
 	if s.Stoker.Append(e) == nil {
 		s.refreshStoker()
 	}
+}
+
+// switchAgent starts another agent in the session's place, its name, cwd
+// and pane: one respawn-pane -k ends the agent there and starts the new
+// one in the same pane, guarded by the old agent's pid and start time. It
+// never closes the pane, and the new agent is named as the old one was
+// (seatWindow, and Claude's --name). A hold on the seat waits for the new agent's
+// session id and moves to it (Rebind); a guard that stops the switch, or
+// a respawn that fails, puts it back as it was. The builder takes the seat
+// back from the stoker, which drives it no more, and the old agent's
+// queue state goes with it. Like kill, a session that works or waits
+// takes a second confirm (Anyway).
+func (s *Service) switchAgent(ctx context.Context, pane string, a proto.Act) proto.Result {
+	if a.Confirm != "y" {
+		return proto.Result{Err: "needs confirm"}
+	}
+	var n proto.SwitchAgent
+	if err := json.Unmarshal([]byte(a.Text), &n); err != nil {
+		return proto.Result{Err: "the switch does not read: " + err.Error()}
+	}
+	if n.Agent == "cursor" {
+		n.Agent = sample.CursorAgent
+	}
+	x, ok := s.sessionAt(pane)
+	switch {
+	case ok && x.Agent == n.Agent:
+		return proto.Result{Err: x.Name + " runs " + n.Agent + " already"}
+	case !slices.Contains(Startable, n.Agent):
+		return proto.Result{Err: n.Agent + " is not an agent matchblox starts: claude, codex, opencode or cursor-agent"}
+	case s.agentBin(n.Agent) == "":
+		return proto.Result{Err: n.Agent + " is not installed here"}
+	case !ok:
+		return proto.Result{Err: "no agent session in " + pane + " any more"}
+	case s.fromStoker(proto.Act{From: pane}):
+		return proto.Result{Err: "the stoker's session keeps its agent"}
+	case s.agentsPane(a):
+		return proto.Result{Err: "the stoker does not switch agents: the builder does"}
+	}
+	if n.Handoff != "" {
+		if err := proto.CheckFirst(n.Handoff, "the handoff"); err != nil {
+			return proto.Result{Err: err.Error()}
+		}
+	}
+	if !s.isDir(x.Cwd) {
+		return proto.Result{Err: "no directory " + x.Cwd}
+	}
+	word := ""
+	switch {
+	case s.waitsOn(pane, x):
+		word = "waits for you"
+	case x.Works():
+		word = "works"
+	}
+	if word != "" && !n.Anyway {
+		return proto.Result{Err: x.Name + " " + word + ": y again switches it mid-turn"}
+	}
+	h, held := s.heldIn(pane, x)
+	if held {
+		moving := h
+		moving.Rebind = true
+		if err := s.Holds.Set(moving); err != nil {
+			return proto.Result{Err: err.Error()}
+		}
+	}
+	release := s.holdPane(pane)
+	act := SwitchAction(pane, x, s.seatWindow(pane, x), launchArgv(s.agentBin(n.Agent), n.Agent, x.Name, n.Handoff))
+	s.mu.Lock()
+	old := s.queue.HookedIn(pane)
+	s.mu.Unlock()
+	res := s.Actions.Do(ctx, act, "y")
+	release()
+	if res.Err != "" || len(res.Ran) < len(act.Steps) {
+		switch {
+		case res.Err == "":
+			// A guard stopped a step, maybe after the rename ran: the old
+			// agent still runs, and the switch did not happen.
+			res.Err = strings.Join(res.Skipped, "; ")
+			res.Skipped = nil
+		case len(res.Ran) == len(act.Steps)-1:
+			res.Err += ": the pane may have no agent now"
+		}
+		if held {
+			if err := s.Holds.Set(h); err != nil {
+				res.Err = strings.TrimPrefix(res.Err+"; "+err.Error(), "; ")
+			}
+		}
+		return res
+	}
+	s.undrive(pane)
+	s.renames.drop(pane)
+	s.mu.Lock()
+	s.queue.Forget(old, s.now())
+	s.cur.Queue = s.queue.Items()
+	s.mu.Unlock()
+	select {
+	case s.sampleKick <- struct{}{}:
+	default: // a sample is asked for already
+	}
+	return res
+}
+
+// seatWindow is the name the seat's window takes before a switch, so the
+// new agent is named as the old one was: "" when tmux names the new agent
+// so already. A window tmux names after its command gives way to the tmux
+// session's name, and a window someone named keeps its name, as does one
+// the seat shares with another pane.
+func (s *Service) seatWindow(pane string, x sample.Session) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	i := slices.IndexFunc(s.cur.Panes, func(p sample.Pane) bool { return p.ID == pane })
+	if i < 0 {
+		return ""
+	}
+	p := s.cur.Panes[i]
+	session, _, _ := strings.Cut(p.Target, ":")
+	if x.Name == "" || x.Name == session || sample.WindowNamed(p, x.Agent) {
+		return ""
+	}
+	server, _ := sample.SplitPane(pane)
+	window := windowOf(p.Target)
+	for _, o := range s.cur.Panes {
+		if o.ID == pane {
+			continue
+		}
+		if srv, _ := sample.SplitPane(o.ID); srv == server && windowOf(o.Target) == window {
+			return ""
+		}
+	}
+	return x.Name
+}
+
+// windowOf is the session:window of a pane's session:window.pane target.
+func windowOf(target string) string {
+	if i := strings.LastIndex(target, "."); i >= 0 {
+		return target[:i]
+	}
+	return target
+}
+
+// SwitchAction is what switchAgent runs: one respawn-pane, after naming
+// the window when window is set, each guarded by the old agent's pid and
+// start time.
+func SwitchAction(pane string, x sample.Session, window string, argv []string) advice.Action {
+	server, bare := sample.SplitPane(pane)
+	tmux := sample.TmuxOn(server)
+	guard := advice.Guard{PID: x.PID, StartTicks: x.Start}
+	a := advice.Action{Label: "switch", Destructive: true}
+	if window != "" {
+		a.Steps = append(a.Steps, slices.Concat(tmux, []string{"rename-window", "-t", bare, window}))
+		a.Guards = append(a.Guards, guard)
+	}
+	a.Steps = append(a.Steps, slices.Concat(tmux,
+		[]string{"respawn-pane", "-k", "-t", bare, "-c", x.Cwd, "env", "-u", "GIT_TERMINAL_PROMPT", "-u", "GIT_SSH_COMMAND", "-u", panes.HomeEnv},
+		argv))
+	a.Guards = append(a.Guards, guard)
+	return a
 }
 
 // renameState keeps the renames that wait for their session's rest.
@@ -458,13 +614,10 @@ func (s *Service) newSteps(ctx context.Context, n proto.NewSession) (steps [][]s
 		return nil, "", "", fmt.Errorf("%s is not installed here", n.Agent)
 	}
 	if n.First != "" {
-		if err := panes.CheckAnswer(n.First); err != nil {
-			return nil, "", "", errors.New(strings.Replace(err.Error(), "the answer", "the first message", 1))
-		}
-		// It goes to the agent as an argument: one that starts with a dash
-		// would be read as a flag (--dangerously-skip-permissions).
-		if strings.HasPrefix(strings.TrimSpace(n.First), "-") {
+		if err := proto.CheckFirst(n.First, "the first message"); errors.Is(err, proto.ErrDash) {
 			return nil, "", "", errors.New("a first message does not start with -")
+		} else if err != nil {
+			return nil, "", "", err
 		}
 	}
 	dir = filepath.Clean(n.Where)

@@ -9,7 +9,7 @@
    “The refresh flow works and the tests
    pass. One choice is yours before I wire…
    #4545 ●━✕┄○┄○┄○  conflicts with main
-    ▲ clear                a answer  ⏎ open
+    ▲ clear      a answer  A switch  ⏎ open
 ────────────────────────────────────────────
  ╿ kindle-web            asks      1m   56%
  ╿ cinder-ci             done      0s   55%

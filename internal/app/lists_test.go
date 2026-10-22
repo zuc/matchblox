@@ -20,8 +20,25 @@ func screen(m tea.Model) string { return ansi.Strip(m.(Model).render()) }
 
 // actionLine is the key line, at the bottom.
 func actionLine(m tea.Model) string {
+	if mm, ok := m.(Model); ok && mm.consenting() {
+		return consentText(mm)
+	}
 	lines := strings.Split(screen(m), "\n")
 	return lines[len(lines)-1]
+}
+
+// consentText is the question box's words on one line: "title: lines ·
+// footer", its edges dropped.
+func consentText(m Model) string {
+	box := m.consentBox(72)
+	edge := func(l string) string { return strings.Trim(ansi.Strip(l), "╭╮╰╯─ ") }
+	var out []string
+	for _, l := range box[1 : len(box)-1] {
+		if l = strings.TrimSpace(strings.Trim(ansi.Strip(l), "│")); l != "" {
+			out = append(out, l)
+		}
+	}
+	return edge(box[0]) + ": " + strings.Join(out, " ") + " · " + edge(box[len(box)-1])
 }
 
 // TestSlashSearchesTheTab: / starts a search of the open tab; while it is
@@ -204,7 +221,7 @@ func TestRemoveEverySafeWorktree(t *testing.T) {
 		t.Fatalf("%d marked, want the 2 safe ones:\n%s", n, screen(next))
 	}
 	next, _ = key(next, "x")
-	if line := actionLine(next); !strings.Contains(line, "RUN git -C /w/app worktree remove /w/wt/done-1  (+1 more)") || !strings.Contains(line, "y run") {
+	if line := actionLine(next); !strings.Contains(line, "git -C /w/app worktree remove /w/wt/done-1 git -C /w/app worktree remove /w/wt/done-2") || !strings.Contains(line, "y run") {
 		t.Fatalf("the confirm does not show the steps: %q", line)
 	}
 	next, cmd := key(next, "y")
@@ -317,7 +334,7 @@ func TestSearchKeepsTheMarks(t *testing.T) {
 		t.Fatalf("marks %v", p)
 	}
 	next, _ = key(next, "x")
-	if line := actionLine(next); !strings.Contains(line, "(+1 more)") {
+	if line := actionLine(next); !strings.Contains(line, "/w/wt/done-1") || !strings.Contains(line, "/w/wt/done-2") {
 		t.Fatalf("the hidden mark does not count: %q", line)
 	}
 	got := next.(Model)

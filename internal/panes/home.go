@@ -23,6 +23,22 @@ func SizeArgv() []string {
 	return []string{"tmux", "set-option", "-w", "-t", "=" + Home + ":", "window-size", "latest"}
 }
 
+// HomeKey is what the app sends to go back to the console: an APC string,
+// which no keyboard types, so the key takes nothing from the apps in the
+// panes and works whatever the prefix is.
+const HomeKey = "\x1b_matchblox\x1b\\"
+
+// homeUserKey is the user-keys slot of HomeKey: far from 0, where the
+// person's own user keys start.
+const homeUserKey = "900"
+
+// HomeKeyArgv makes HomeKey a key of the tmux server that takes the client
+// to the console's session. A client attached already gets it at once.
+func HomeKeyArgv() []string {
+	return []string{"tmux", "set-option", "-s", "user-keys[" + homeUserKey + "]", HomeKey,
+		";", "bind-key", "-n", "User" + homeUserKey, "switch-client", "-t", "=" + Home}
+}
+
 // HomeEnv is set in the home session: the console there is the session's
 // only command, so on an error it waits for the person to read it.
 const HomeEnv = "MATCHBLOX_HOME"

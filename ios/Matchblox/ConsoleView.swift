@@ -103,8 +103,9 @@ struct ConsoleView: View {
 private struct TerminalRepresentable: UIViewRepresentable {
     let connection: ConsoleConnection
 
-    func makeUIView(context: Context) -> TerminalView {
-        let terminal = TerminalView(frame: .zero, font: UIFont.monospacedSystemFont(ofSize: 13, weight: .regular))
+    func makeUIView(context: Context) -> ConsoleTerminalView {
+        let terminal = ConsoleTerminalView(font: UIFont.monospacedSystemFont(ofSize: 13, weight: .regular))
+        terminal.onHome = { [weak connection] in connection?.goHome() }
         let bg = UIColor(Theme.bg)
         terminal.backgroundColor = bg
         terminal.nativeBackgroundColor = bg
@@ -117,7 +118,7 @@ private struct TerminalRepresentable: UIViewRepresentable {
         return terminal
     }
 
-    func updateUIView(_ terminal: TerminalView, context: Context) {}
+    func updateUIView(_ terminal: ConsoleTerminalView, context: Context) {}
 }
 
 /// Owns one SSHSession for each connect. A session that ends at once opens again; a good session that ends waits for a tap. It stops when the view goes away or the app goes to the background.
@@ -185,6 +186,10 @@ final class ConsoleConnection {
     func retry() {
         cancel()
         start()
+    }
+
+    func goHome() {
+        outgoing?.yield(.input(Data(HomeKey.bytes)))
     }
 
     private func cancel() {

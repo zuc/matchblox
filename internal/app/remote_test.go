@@ -36,7 +36,7 @@ func TestRemoteJumpAttachesOverSSH(t *testing.T) {
 	m.tab = tabSessions
 	next, _ := key(m, "enter")
 	want := remote.NavArgv("ws-1", [][]string{{"tmux", "switch-client", "-t", "%1"}})
-	if out := ansi.Strip(next.(Model).render()); !strings.Contains(out, shellLine(want)) {
+	if out := actionLine(next); !strings.Contains(out, shellLine(want)) {
 		t.Fatalf("the confirm must show the exact ssh argv %q:\n%s", shellLine(want), out)
 	}
 	next, cmd := key(next, "enter")
